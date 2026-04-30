@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.CoroutineScope
@@ -36,6 +37,10 @@ class SettingsStore(context: Context) {
     val toolsEnabled: StateFlow<Boolean> = ds.data
         .map { it[TOOLS_ENABLED] ?: false }
         .stateIn(scope, SharingStarted.Eagerly, false)
+
+    val toolMaxIterations: StateFlow<Int> = ds.data
+        .map { (it[TOOL_MAX_ITERATIONS] ?: DEFAULT_TOOL_MAX_ITERATIONS).coerceIn(1, 10) }
+        .stateIn(scope, SharingStarted.Eagerly, DEFAULT_TOOL_MAX_ITERATIONS)
 
     val agentsMode: StateFlow<String?> = ds.data
         .map { it[AGENTS_MODE] }
@@ -71,6 +76,10 @@ class SettingsStore(context: Context) {
         ds.edit { it[TOOLS_ENABLED] = enabled }
     }
 
+    suspend fun setToolMaxIterations(value: Int) {
+        ds.edit { it[TOOL_MAX_ITERATIONS] = value.coerceIn(1, 10) }
+    }
+
     suspend fun setAgentsMode(mode: String?) {
         ds.edit { if (mode == null) it.remove(AGENTS_MODE) else it[AGENTS_MODE] = mode }
     }
@@ -88,10 +97,12 @@ class SettingsStore(context: Context) {
     }
 
     private companion object {
+        const val DEFAULT_TOOL_MAX_ITERATIONS = 4
         val HF_TOKEN: Preferences.Key<String> = stringPreferencesKey("hf_token")
         val NPU_ENABLED: Preferences.Key<Boolean> = booleanPreferencesKey("npu_enabled")
         val TEMPERATURE: Preferences.Key<String> = stringPreferencesKey("default_temperature")
         val TOOLS_ENABLED: Preferences.Key<Boolean> = booleanPreferencesKey("tools_enabled")
+        val TOOL_MAX_ITERATIONS: Preferences.Key<Int> = intPreferencesKey("tool_max_iterations")
         val AGENTS_MODE: Preferences.Key<String> = stringPreferencesKey("agents_mode")
         val AGENTS_PIPELINE_JSON: Preferences.Key<String> = stringPreferencesKey("agents_pipeline_json")
         val AGENTS_ROUTER_JSON: Preferences.Key<String> = stringPreferencesKey("agents_router_json")

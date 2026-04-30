@@ -28,6 +28,7 @@ data class SettingsUiState(
     val npuEnabled: Boolean = true,
     val temperature: Float = 0.7f,
     val toolsEnabled: Boolean = false,
+    val toolMaxIterations: Int = 4,
     val deviceProfile: DeviceProfile,
     val storage: StorageSummary,
 )
@@ -43,6 +44,7 @@ class SettingsViewModel(
         settingsStore.npuEnabled,
         settingsStore.defaultTemperature,
         settingsStore.toolsEnabled,
+        settingsStore.toolMaxIterations,
         storage.installed,
     ) { values ->
         @Suppress("UNCHECKED_CAST")
@@ -50,13 +52,15 @@ class SettingsViewModel(
         val npu = values[1] as Boolean
         val temp = values[2] as Float
         val tools = values[3] as Boolean
-        val installed = values[4] as List<InstalledModel>
+        val maxIter = values[4] as Int
+        val installed = values[5] as List<InstalledModel>
         SettingsUiState(
             hfToken = token.orEmpty(),
             tokenSet = !token.isNullOrEmpty(),
             npuEnabled = npu,
             temperature = temp,
             toolsEnabled = tools,
+            toolMaxIterations = maxIter,
             deviceProfile = deviceProfile,
             storage = installed.toSummary(),
         )
@@ -111,6 +115,10 @@ class SettingsViewModel(
 
     fun onToolsEnabledChanged(enabled: Boolean) {
         viewModelScope.launch { settingsStore.setToolsEnabled(enabled) }
+    }
+
+    fun onToolMaxIterationsChanged(value: Int) {
+        viewModelScope.launch { settingsStore.setToolMaxIterations(value) }
     }
 
     private fun List<InstalledModel>.toSummary() = StorageSummary(

@@ -224,6 +224,7 @@ class ChatViewModel(
         assistantMsgId: String,
     ) {
         val temperature = settingsStore.defaultTemperature.value
+        val maxIterations = settingsStore.toolMaxIterations.value
         val stops = template.stopSequences
         var iteration = 0
 
@@ -300,10 +301,10 @@ class ChatViewModel(
                 content = ToolCallProtocol.renderResult(result),
             )
 
-            if (iteration >= MAX_TOOL_ITERATIONS) {
+            if (iteration >= maxIterations) {
                 appendToAssistant(
                     assistantMsgId,
-                    "\n\n[Tool loop exceeded $MAX_TOOL_ITERATIONS iterations]",
+                    "\n\n[Tool loop exceeded $maxIterations iterations]",
                 )
                 finalizeAssistant(assistantMsgId, lastUsage)
                 return
@@ -389,7 +390,6 @@ class ChatViewModel(
     }
 
     private companion object {
-        const val MAX_TOOL_ITERATIONS = 4
         val DEFAULT_TOOLS: List<Tool> = listOf(CalculatorTool(), CurrentTimeTool())
     }
 }
