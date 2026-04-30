@@ -227,7 +227,10 @@ fun AgentsScreen(
 
         if (state.runs.isNotEmpty()) {
             Text("Output", style = MaterialTheme.typography.titleMedium)
-            state.runs.forEachIndexed { index, run -> RunCard(index, run) }
+            val isMultiRound = state.runs.any { it.stepId.contains("-r") }
+            state.runs.forEachIndexed { index, run ->
+                RunCard(index, run, isMultiRound)
+            }
         }
     }
 }
@@ -521,12 +524,48 @@ private fun ModeratorCard(
     }
 }
 
+/**
+ * Convert internal stepIds into something a user can read.
+ *
+ * - `router` / `routed` / `moderator` are fixed names used by the orchestrator.
+ * - `p-{i}` and `p-{i}-r{round}` come from the Debate runner; round numbers
+ *   are only shown when the run actually spans multiple rounds, otherwise
+ *   "Round 1 — Participant 1" would be needless noise.
+ * - Anything else (Pipeline custom agentIds) falls back to "Step {index+1}".
+ */
+private fun friendlyStepLabel(run: StepRun, fallbackIndex: Int, isMultiRound: Boolean): String {
+    val id = run.stepId
+    return when {
+        id == "router" -> "Router"
+        id == "routed" -> "Routed"
+        id == "moderator" -> "Moderator"
+        id.startsWith("p-") -> {
+            val rest = id.removePrefix("p-")
+            val roundSep = rest.indexOf("-r")
+            if (roundSep < 0) {
+                val n = rest.toIntOrNull() ?: return "Step ${fallbackIndex + 1}"
+                if (isMultiRound) "Round 1 — Participant ${n + 1}" else "Participant ${n + 1}"
+            } else {
+                val n = rest.substring(0, roundSep).toIntOrNull()
+                val r = rest.substring(roundSep + 2).toIntOrNull()
+                if (n == null || r == null) "Step ${fallbackIndex + 1}"
+                else "Round $r — Participant ${n + 1}"
+            }
+        }
+        else -> "Step ${fallbackIndex + 1}"
+    }
+}
+
 @Composable
-private fun RunCard(index: Int, run: StepRun) {
+private fun RunCard(index: Int, run: StepRun, isMultiRound: Boolean = false) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Step ${index + 1}", fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text(
+                    friendlyStepLabel(run, index, isMultiRound),
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f),
+                )
                 Text(
                     if (run.isComplete) "done" else "…",
                     color = if (run.isComplete) MaterialTheme.colorScheme.primary
