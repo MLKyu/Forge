@@ -94,6 +94,18 @@ fun SettingsScreen(
                 valueRange = 0f..1.5f,
                 steps = 14,
             )
+            HorizontalDivider()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Enable tools in Chat", fontWeight = FontWeight.Medium)
+                    Text(
+                        "Lets the model call calculator and current_time. Smaller models may not follow the call format.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = state.toolsEnabled, onCheckedChange = viewModel::onToolsEnabledChanged)
+            }
         }
 
         SectionCard(title = "Device") {

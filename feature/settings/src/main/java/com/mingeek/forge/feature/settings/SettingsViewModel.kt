@@ -27,6 +27,7 @@ data class SettingsUiState(
     val tokenSet: Boolean = false,
     val npuEnabled: Boolean = true,
     val temperature: Float = 0.7f,
+    val toolsEnabled: Boolean = false,
     val deviceProfile: DeviceProfile,
     val storage: StorageSummary,
 )
@@ -41,13 +42,21 @@ class SettingsViewModel(
         settingsStore.hfToken,
         settingsStore.npuEnabled,
         settingsStore.defaultTemperature,
+        settingsStore.toolsEnabled,
         storage.installed,
-    ) { token, npu, temp, installed ->
+    ) { values ->
+        @Suppress("UNCHECKED_CAST")
+        val token = values[0] as String?
+        val npu = values[1] as Boolean
+        val temp = values[2] as Float
+        val tools = values[3] as Boolean
+        val installed = values[4] as List<InstalledModel>
         SettingsUiState(
             hfToken = token.orEmpty(),
             tokenSet = !token.isNullOrEmpty(),
             npuEnabled = npu,
             temperature = temp,
+            toolsEnabled = tools,
             deviceProfile = deviceProfile,
             storage = installed.toSummary(),
         )
@@ -98,6 +107,10 @@ class SettingsViewModel(
 
     fun onTemperatureChanged(value: Float) {
         pendingTemperature.tryEmit(value)
+    }
+
+    fun onToolsEnabledChanged(enabled: Boolean) {
+        viewModelScope.launch { settingsStore.setToolsEnabled(enabled) }
     }
 
     private fun List<InstalledModel>.toSummary() = StorageSummary(

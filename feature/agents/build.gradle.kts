@@ -31,6 +31,7 @@ dependencies {
     implementation(project(":runtime:registry"))
     implementation(project(":agent:core"))
     implementation(project(":agent:orchestrator"))
+    implementation(project(":agent:tools"))
 
     implementation(libs.androidx.core.ktx)
     implementation(platform(libs.androidx.compose.bom))
