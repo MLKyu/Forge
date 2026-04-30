@@ -33,6 +33,10 @@ class SettingsStore(context: Context) {
         .map { it[TEMPERATURE]?.toFloatOrNull() ?: 0.7f }
         .stateIn(scope, SharingStarted.Eagerly, 0.7f)
 
+    val toolsEnabled: StateFlow<Boolean> = ds.data
+        .map { it[TOOLS_ENABLED] ?: false }
+        .stateIn(scope, SharingStarted.Eagerly, false)
+
     suspend fun setHfToken(token: String?) {
         ds.edit { prefs ->
             if (token.isNullOrBlank()) prefs.remove(HF_TOKEN) else prefs[HF_TOKEN] = token
@@ -47,9 +51,14 @@ class SettingsStore(context: Context) {
         ds.edit { it[TEMPERATURE] = value.toString() }
     }
 
+    suspend fun setToolsEnabled(enabled: Boolean) {
+        ds.edit { it[TOOLS_ENABLED] = enabled }
+    }
+
     private companion object {
         val HF_TOKEN: Preferences.Key<String> = stringPreferencesKey("hf_token")
         val NPU_ENABLED: Preferences.Key<Boolean> = booleanPreferencesKey("npu_enabled")
         val TEMPERATURE: Preferences.Key<String> = stringPreferencesKey("default_temperature")
+        val TOOLS_ENABLED: Preferences.Key<Boolean> = booleanPreferencesKey("tools_enabled")
     }
 }

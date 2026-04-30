@@ -198,6 +198,11 @@ private fun MessageBubble(msg: ChatMessage) {
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
     ) {
+        // Tool calls render above the assistant bubble in invocation order.
+        for (entry in msg.toolCalls) {
+            ToolCallCard(entry)
+        }
+
         val bg = if (isUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest
         val fg = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
         Box(
@@ -226,6 +231,40 @@ private fun MessageBubble(msg: ChatMessage) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 2.dp, start = 4.dp, end = 4.dp),
         )
+    }
+}
+
+@Composable
+private fun ToolCallCard(entry: ToolCallEntry) {
+    val accent = if (entry.isError) MaterialTheme.colorScheme.error
+    else MaterialTheme.colorScheme.tertiary
+    Box(
+        modifier = Modifier
+            .widthIn(max = 320.dp)
+            .padding(bottom = 4.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    ) {
+        Column {
+            Text(
+                "🔧 " + entry.toolName + if (entry.isError) " · error" else "",
+                style = MaterialTheme.typography.labelMedium,
+                color = accent,
+            )
+            Text(
+                "args: ${entry.argumentsJson}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            Text(
+                "result: ${entry.resultJson}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
     }
 }
 
