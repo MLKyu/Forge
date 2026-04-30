@@ -49,6 +49,19 @@ sealed interface OrchestratorEvent {
     data class StepStarted(override val workflowId: String, val stepId: String, val agentId: String) : OrchestratorEvent
     data class StepToken(override val workflowId: String, val stepId: String, val piece: String) : OrchestratorEvent
     data class StepCompleted(override val workflowId: String, val stepId: String, val output: String) : OrchestratorEvent
+    data class StepToolCall(
+        override val workflowId: String,
+        val stepId: String,
+        val toolName: String,
+        val argumentsJson: String,
+    ) : OrchestratorEvent
+    data class StepToolResult(
+        override val workflowId: String,
+        val stepId: String,
+        val toolName: String,
+        val resultJson: String,
+        val isError: Boolean,
+    ) : OrchestratorEvent
     data class Completed(override val workflowId: String, val finalOutput: String) : OrchestratorEvent
     data class Failed(override val workflowId: String, val message: String, val cause: Throwable? = null) : OrchestratorEvent
 }
