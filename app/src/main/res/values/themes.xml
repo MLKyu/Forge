@@ -1,0 +1,11 @@
+<resources>
+    <!-- Splash screen shown until the activity finishes its first frame. -->
+    <style name="Theme.Forge.Starter" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/forge_bg_dark</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/forge_bg_dark</item>
+        <item name="postSplashScreenTheme">@style/Theme.Forge</item>
+    </style>
+
+    <style name="Theme.Forge" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

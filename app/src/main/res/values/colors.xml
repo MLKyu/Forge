@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Forge brand -->
+    <color name="forge_bg_dark">#0D0D0D</color>
+    <color name="forge_bg_lighter">#1F1F2E</color>
+    <color name="forge_layer_back">#6B6BFF</color>
+    <color name="forge_layer_middle">#B8B8FF</color>
+    <color name="forge_layer_front">#FFFFFF</color>
+    <color name="forge_spark">#FF6B35</color>
+
+    <!-- Adaptive icon legacy fallback -->
+    <color name="ic_launcher_background">#0D0D0D</color>
+
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>

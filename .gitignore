@@ -1,0 +1,51 @@
+# Android / Gradle
+*.iml
+.gradle/
+local.properties
+
+# IDE
+/.idea/
+!/.idea/codeStyles
+!/.idea/inspectionProfiles
+.vscode/
+.fleet/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+/build/
+**/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+
+# APK / signing
+*.apk
+*.aab
+*.keystore
+*.jks
+*.p12
+keystore.properties
+release.properties
+
+# Native
+*.so.debug
+
+# Logs / temp
+*.log
+hs_err_pid*
+*.bak
+*.swp
+
+# Models (downloads / imports — never check in)
+/models/
+**/models/
+*.gguf
+*.task
+*.pte
+
+# Internal session notes (kept local)
+/PLANNING.md
+/STATUS.md
