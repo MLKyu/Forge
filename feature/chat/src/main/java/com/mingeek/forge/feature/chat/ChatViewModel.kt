@@ -18,6 +18,7 @@ import com.mingeek.forge.agent.core.Tool
 import com.mingeek.forge.agent.core.ToolCallProtocol
 import com.mingeek.forge.agent.tools.CalculatorTool
 import com.mingeek.forge.agent.tools.CurrentTimeTool
+import com.mingeek.forge.agent.tools.WordCountTool
 import com.mingeek.forge.runtime.registry.RuntimeRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -390,6 +391,6 @@ class ChatViewModel(
     }
 
     private companion object {
-        val DEFAULT_TOOLS: List<Tool> = listOf(CalculatorTool(), CurrentTimeTool())
+        val DEFAULT_TOOLS: List<Tool> = listOf(CalculatorTool(), CurrentTimeTool(), WordCountTool())
     }
 }
