@@ -216,7 +216,14 @@ fun AgentsScreen(
                         ) { Text(runLabel) }
                     }
                     OutlinedButton(
-                        onClick = { exportLauncher.launch("agents-pipeline.md") },
+                        onClick = {
+                            val name = when (state.mode) {
+                                WorkflowMode.PIPELINE -> "agents-pipeline.md"
+                                WorkflowMode.ROUTER -> "agents-router.md"
+                                WorkflowMode.DEBATE -> "agents-debate.md"
+                            }
+                            exportLauncher.launch(name)
+                        },
                         enabled = state.runs.any { it.output.isNotEmpty() } &&
                             state.status != RunStatus.Running,
                     ) { Text("Export") }

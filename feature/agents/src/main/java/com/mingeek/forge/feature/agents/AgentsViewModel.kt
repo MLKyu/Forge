@@ -705,26 +705,112 @@ class AgentsViewModel(
                 runCatching {
                     resolver.openOutputStream(uri)?.use { out ->
                         out.bufferedWriter().use { w ->
-                            w.append("# Agents pipeline\n\n")
+                            w.append("# Agents — ").append(snapshot.mode.displayName).append("\n\n")
                             w.append("**User prompt:** ").append(snapshot.userPrompt.ifBlank { "(empty)" }).append("\n\n")
-                            snapshot.steps.forEachIndexed { i, step ->
-                                val run = snapshot.runs.firstOrNull { it.stepId == step.agentId }
-                                val model = snapshot.installed.firstOrNull { it.id == step.modelId }
-                                w.append("## Step ").append((i + 1).toString())
-                                model?.let { w.append(" — ").append(it.displayName) }
-                                w.append("\n\n")
-                                if (step.systemPrompt.isNotBlank()) {
-                                    w.append("**System:** ").append(step.systemPrompt).append("\n\n")
-                                }
-                                w.append("**Template:** `").append(step.promptTemplate).append("`\n\n")
-                                w.append("**Output:**\n\n")
-                                w.append(run?.output?.ifBlank { "_(no output)_" } ?: "_(not run)_")
-                                w.append("\n\n")
+                            when (snapshot.mode) {
+                                WorkflowMode.PIPELINE -> writePipelineExport(w, snapshot)
+                                WorkflowMode.ROUTER -> writeRouterExport(w, snapshot)
+                                WorkflowMode.DEBATE -> writeDebateExport(w, snapshot)
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    private fun writePipelineExport(w: java.io.BufferedWriter, s: AgentsUiState) {
+        s.steps.forEachIndexed { i, step ->
+            val run = s.runs.firstOrNull { it.stepId == step.agentId }
+            val model = s.installed.firstOrNull { it.id == step.modelId }
+            w.append("## Step ").append((i + 1).toString())
+            model?.let { w.append(" — ").append(it.displayName) }
+            w.append("\n\n")
+            if (step.systemPrompt.isNotBlank()) {
+                w.append("**System:** ").append(step.systemPrompt).append("\n\n")
+            }
+            w.append("**Template:** `").append(step.promptTemplate).append("`\n\n")
+            writeToolCalls(w, run)
+            w.append("**Output:**\n\n")
+            w.append(run?.output?.ifBlank { "_(no output)_" } ?: "_(not run)_")
+            w.append("\n\n")
+        }
+    }
+
+    private fun writeRouterExport(w: java.io.BufferedWriter, s: AgentsUiState) {
+        val r = s.router
+        val routerModel = s.installed.firstOrNull { it.id == r.routerModelId }
+        w.append("## Router")
+        routerModel?.let { w.append(" — ").append(it.displayName) }
+        w.append("\n\n")
+        if (r.routerSystemPrompt.isNotBlank()) {
+            w.append("**System:** ").append(r.routerSystemPrompt).append("\n\n")
+        }
+        val routerRun = s.runs.firstOrNull { it.stepId == "router" }
+        writeToolCalls(w, routerRun)
+        w.append("**Classification:**\n\n")
+        w.append(routerRun?.output?.ifBlank { "_(no output)_" } ?: "_(not run)_").append("\n\n")
+        w.append("**Routes:**\n\n")
+        for (route in r.routes) {
+            val routeModel = s.installed.firstOrNull { it.id == route.modelId }
+            w.append("- `").append(route.key).append("` → ").append(route.agentId)
+            routeModel?.let { w.append(" (").append(it.displayName).append(")") }
+            w.append("\n")
+        }
+        w.append("\n## Routed answer\n\n")
+        val routed = s.runs.firstOrNull { it.stepId == "routed" }
+        writeToolCalls(w, routed)
+        w.append(routed?.output?.ifBlank { "_(no output)_" } ?: "_(not run)_").append("\n\n")
+    }
+
+    private fun writeDebateExport(w: java.io.BufferedWriter, s: AgentsUiState) {
+        val d = s.debate
+        val rounds = d.maxRounds.coerceAtLeast(1)
+        val isMultiRound = rounds > 1
+        for (round in 1..rounds) {
+            if (isMultiRound) w.append("## Round ").append(round.toString()).append("\n\n")
+            d.participants.forEachIndexed { i, p ->
+                val stepId = if (round == 1) "p-$i" else "p-$i-r$round"
+                val run = s.runs.firstOrNull { it.stepId == stepId }
+                val model = s.installed.firstOrNull { it.id == p.modelId }
+                val header = if (isMultiRound) "### Participant " else "## Participant "
+                w.append(header).append((i + 1).toString())
+                model?.let { w.append(" — ").append(it.displayName) }
+                w.append("\n\n")
+                if (round == 1 && p.systemPrompt.isNotBlank()) {
+                    w.append("**System:** ").append(p.systemPrompt).append("\n\n")
+                }
+                writeToolCalls(w, run)
+                w.append(run?.output?.ifBlank { "_(no output)_" } ?: "_(not run)_").append("\n\n")
+            }
+        }
+        if (d.moderatorEnabled) {
+            val modModel = s.installed.firstOrNull { it.id == d.moderatorModelId }
+            w.append("## Moderator")
+            modModel?.let { w.append(" — ").append(it.displayName) }
+            w.append("\n\n")
+            if (d.moderatorSystemPrompt.isNotBlank()) {
+                w.append("**System:** ").append(d.moderatorSystemPrompt).append("\n\n")
+            }
+            val modRun = s.runs.firstOrNull { it.stepId == "moderator" }
+            writeToolCalls(w, modRun)
+            w.append(modRun?.output?.ifBlank { "_(no output)_" } ?: "_(not run)_").append("\n\n")
+        }
+    }
+
+    private fun writeToolCalls(w: java.io.BufferedWriter, run: StepRun?) {
+        val calls = run?.toolCalls.orEmpty()
+        if (calls.isEmpty()) return
+        w.append("**Tool calls:**\n\n")
+        for (call in calls) {
+            w.append("- `").append(call.toolName).append("` ").append(call.argumentsJson)
+            val result = call.resultJson
+            if (result != null) {
+                val tag = if (call.isError) "error" else "result"
+                w.append(" → _").append(tag).append(":_ ").append(result)
+            }
+            w.append("\n")
+        }
+        w.append("\n")
     }
 }
