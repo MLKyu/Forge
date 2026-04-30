@@ -37,6 +37,22 @@ class SettingsStore(context: Context) {
         .map { it[TOOLS_ENABLED] ?: false }
         .stateIn(scope, SharingStarted.Eagerly, false)
 
+    val agentsMode: StateFlow<String?> = ds.data
+        .map { it[AGENTS_MODE] }
+        .stateIn(scope, SharingStarted.Eagerly, null)
+
+    val agentsPipelineJson: StateFlow<String?> = ds.data
+        .map { it[AGENTS_PIPELINE_JSON] }
+        .stateIn(scope, SharingStarted.Eagerly, null)
+
+    val agentsRouterJson: StateFlow<String?> = ds.data
+        .map { it[AGENTS_ROUTER_JSON] }
+        .stateIn(scope, SharingStarted.Eagerly, null)
+
+    val agentsDebateJson: StateFlow<String?> = ds.data
+        .map { it[AGENTS_DEBATE_JSON] }
+        .stateIn(scope, SharingStarted.Eagerly, null)
+
     suspend fun setHfToken(token: String?) {
         ds.edit { prefs ->
             if (token.isNullOrBlank()) prefs.remove(HF_TOKEN) else prefs[HF_TOKEN] = token
@@ -55,10 +71,30 @@ class SettingsStore(context: Context) {
         ds.edit { it[TOOLS_ENABLED] = enabled }
     }
 
+    suspend fun setAgentsMode(mode: String?) {
+        ds.edit { if (mode == null) it.remove(AGENTS_MODE) else it[AGENTS_MODE] = mode }
+    }
+
+    suspend fun setAgentsPipelineJson(json: String?) {
+        ds.edit { if (json == null) it.remove(AGENTS_PIPELINE_JSON) else it[AGENTS_PIPELINE_JSON] = json }
+    }
+
+    suspend fun setAgentsRouterJson(json: String?) {
+        ds.edit { if (json == null) it.remove(AGENTS_ROUTER_JSON) else it[AGENTS_ROUTER_JSON] = json }
+    }
+
+    suspend fun setAgentsDebateJson(json: String?) {
+        ds.edit { if (json == null) it.remove(AGENTS_DEBATE_JSON) else it[AGENTS_DEBATE_JSON] = json }
+    }
+
     private companion object {
         val HF_TOKEN: Preferences.Key<String> = stringPreferencesKey("hf_token")
         val NPU_ENABLED: Preferences.Key<Boolean> = booleanPreferencesKey("npu_enabled")
         val TEMPERATURE: Preferences.Key<String> = stringPreferencesKey("default_temperature")
         val TOOLS_ENABLED: Preferences.Key<Boolean> = booleanPreferencesKey("tools_enabled")
+        val AGENTS_MODE: Preferences.Key<String> = stringPreferencesKey("agents_mode")
+        val AGENTS_PIPELINE_JSON: Preferences.Key<String> = stringPreferencesKey("agents_pipeline_json")
+        val AGENTS_ROUTER_JSON: Preferences.Key<String> = stringPreferencesKey("agents_router_json")
+        val AGENTS_DEBATE_JSON: Preferences.Key<String> = stringPreferencesKey("agents_debate_json")
     }
 }

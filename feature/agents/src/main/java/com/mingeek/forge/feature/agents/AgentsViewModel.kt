@@ -16,11 +16,21 @@ import com.mingeek.forge.data.storage.ModelStorage
 import com.mingeek.forge.data.storage.SettingsStore
 import com.mingeek.forge.runtime.registry.RuntimeRegistry
 import com.mingeek.forge.runtime.registry.SharedSessionRegistry
+import com.squareup.moshi.JsonAdapter
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -152,12 +162,68 @@ class AgentsViewModel(
 
     private var runJob: Job? = null
 
+    private val moshi: Moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+    private val stepsAdapter: JsonAdapter<List<StepConfig>> = moshi.adapter(
+        Types.newParameterizedType(List::class.java, StepConfig::class.java),
+    )
+    private val routerAdapter: JsonAdapter<RouterConfig> = moshi.adapter(RouterConfig::class.java)
+    private val debateAdapter: JsonAdapter<DebateConfig> = moshi.adapter(DebateConfig::class.java)
+
     init {
         viewModelScope.launch {
             storage.installed.collect { models ->
                 _state.update { it.copy(installed = models) }
             }
         }
+        // Restore saved configs first, then start the auto-save observer so we
+        // don't immediately re-write what we just loaded.
+        viewModelScope.launch {
+            restorePersistedConfig()
+            observePersistableChanges()
+        }
+    }
+
+    @OptIn(FlowPreview::class)
+    private suspend fun observePersistableChanges() {
+        _state
+            .map { PersistableSnapshot(it.mode, it.steps, it.router, it.debate) }
+            .distinctUntilChanged()
+            .drop(1)
+            .debounce(300)
+            .collect { persist(it) }
+    }
+
+    private data class PersistableSnapshot(
+        val mode: WorkflowMode,
+        val steps: List<StepConfig>,
+        val router: RouterConfig,
+        val debate: DebateConfig,
+    )
+
+    private suspend fun restorePersistedConfig() {
+        val savedMode = settingsStore.agentsMode.first()
+        val savedSteps = settingsStore.agentsPipelineJson.first()
+            ?.let { runCatching { stepsAdapter.fromJson(it) }.getOrNull() }
+        val savedRouter = settingsStore.agentsRouterJson.first()
+            ?.let { runCatching { routerAdapter.fromJson(it) }.getOrNull() }
+        val savedDebate = settingsStore.agentsDebateJson.first()
+            ?.let { runCatching { debateAdapter.fromJson(it) }.getOrNull() }
+
+        _state.update { current ->
+            current.copy(
+                mode = savedMode?.let { runCatching { WorkflowMode.valueOf(it) }.getOrNull() } ?: current.mode,
+                steps = savedSteps?.takeIf { it.isNotEmpty() } ?: current.steps,
+                router = savedRouter ?: current.router,
+                debate = savedDebate ?: current.debate,
+            )
+        }
+    }
+
+    private suspend fun persist(snap: PersistableSnapshot) {
+        settingsStore.setAgentsMode(snap.mode.name)
+        settingsStore.setAgentsPipelineJson(stepsAdapter.toJson(snap.steps))
+        settingsStore.setAgentsRouterJson(routerAdapter.toJson(snap.router))
+        settingsStore.setAgentsDebateJson(debateAdapter.toJson(snap.debate))
     }
 
     fun setStepModel(agentId: String, modelId: String?) {
