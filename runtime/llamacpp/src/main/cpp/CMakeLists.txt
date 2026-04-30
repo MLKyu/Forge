@@ -30,11 +30,14 @@ if(ANDROID_ABI STREQUAL "arm64-v8a")
 endif()
 
 include(FetchContent)
+# Pin to a specific upstream commit. Bumping requires manual review — moving
+# llama.cpp forward sometimes breaks the JNI surface or quantization compat.
+# To upgrade: pick an upstream commit, bump GIT_TAG, run a full build + a
+# local Chat smoke-test, then commit the new SHA.
 FetchContent_Declare(
     llama_cpp
     GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
-    GIT_TAG        master
-    GIT_SHALLOW    TRUE
+    GIT_TAG        d77599234ea6e498775aeadbce665eece5bd98cd
 )
 FetchContent_MakeAvailable(llama_cpp)
 
