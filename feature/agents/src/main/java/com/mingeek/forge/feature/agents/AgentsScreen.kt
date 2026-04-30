@@ -170,6 +170,10 @@ fun AgentsScreen(
             ) {
                 Text("+ Add participant")
             }
+            DebateRoundsCard(
+                rounds = state.debate.maxRounds,
+                onRoundsChange = viewModel::setDebateMaxRounds,
+            )
             ModeratorCard(
                 debate = state.debate,
                 installed = state.installed,
@@ -438,6 +442,27 @@ private fun ParticipantCard(
                 label = { Text("Stance / system prompt") },
                 minLines = 2,
                 maxLines = 4,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DebateRoundsCard(rounds: Int, onRoundsChange: (Int) -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Rounds", fontWeight = FontWeight.Medium)
+            Text(
+                "Round 1: each participant answers the user. Rounds 2+: every participant sees the others' previous answers and refines their own.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text("Max rounds: $rounds", style = MaterialTheme.typography.bodySmall)
+            androidx.compose.material3.Slider(
+                value = rounds.toFloat(),
+                onValueChange = { onRoundsChange(it.toInt()) },
+                valueRange = 1f..3f,
+                steps = 1, // 1, 2, 3
             )
         }
     }

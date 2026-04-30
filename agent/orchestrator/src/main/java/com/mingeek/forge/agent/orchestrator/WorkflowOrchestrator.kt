@@ -38,61 +38,74 @@ class WorkflowOrchestrator(
             emit(OrchestratorEvent.Failed(workflow.id, "Debate has no participants"))
             return
         }
+        val totalRounds = workflow.maxRounds.coerceAtLeast(1)
 
-        val participantOutputs = mutableListOf<Pair<String, String>>() // agentId, output
+        // outputs[round-1][index] = participant answer for that round
+        val outputsByRound = MutableList(totalRounds) { mutableListOf<String>() }
 
-        for ((index, participantId) in workflow.participantAgentIds.withIndex()) {
-            val agent = agents[participantId]
-            if (agent == null) {
-                emit(OrchestratorEvent.Failed(workflow.id, "Participant agent not found: $participantId"))
-                return
-            }
-            val stepId = "p-$index"
-            emit(OrchestratorEvent.StepStarted(workflow.id, stepId, participantId))
-            val output = StringBuilder()
-            var failed: String? = null
-            try {
-                agent.run(AgentInput(text = userInput), AgentContext(agentId = participantId))
-                    .collect { ev ->
-                        when (ev) {
-                            is AgentEvent.Token -> {
-                                output.append(ev.piece)
-                                emit(OrchestratorEvent.StepToken(workflow.id, stepId, ev.piece))
+        for (round in 1..totalRounds) {
+            for ((index, participantId) in workflow.participantAgentIds.withIndex()) {
+                val agent = agents[participantId]
+                if (agent == null) {
+                    emit(OrchestratorEvent.Failed(workflow.id, "Participant agent not found: $participantId"))
+                    return
+                }
+                val stepId = stepIdForParticipant(round, index)
+                emit(OrchestratorEvent.StepStarted(workflow.id, stepId, participantId))
+
+                val turnPrompt = buildParticipantPrompt(
+                    userInput = userInput,
+                    round = round,
+                    selfIndex = index,
+                    previousOutputs = outputsByRound,
+                )
+
+                val output = StringBuilder()
+                var failed: String? = null
+                try {
+                    agent.run(AgentInput(text = turnPrompt), AgentContext(agentId = participantId))
+                        .collect { ev ->
+                            when (ev) {
+                                is AgentEvent.Token -> {
+                                    output.append(ev.piece)
+                                    emit(OrchestratorEvent.StepToken(workflow.id, stepId, ev.piece))
+                                }
+                                is AgentEvent.Failed -> failed = ev.message
+                                is AgentEvent.ToolCall -> emit(
+                                    OrchestratorEvent.StepToolCall(
+                                        workflow.id, stepId, ev.name, ev.argumentsJson,
+                                    ),
+                                )
+                                is AgentEvent.ToolResult -> emit(
+                                    OrchestratorEvent.StepToolResult(
+                                        workflow.id, stepId, ev.name, ev.resultJson, ev.isError,
+                                    ),
+                                )
+                                is AgentEvent.Final,
+                                is AgentEvent.Thought -> { /* ignore */ }
                             }
-                            is AgentEvent.Failed -> failed = ev.message
-                            is AgentEvent.ToolCall -> emit(
-                                OrchestratorEvent.StepToolCall(
-                                    workflow.id, stepId, ev.name, ev.argumentsJson,
-                                ),
-                            )
-                            is AgentEvent.ToolResult -> emit(
-                                OrchestratorEvent.StepToolResult(
-                                    workflow.id, stepId, ev.name, ev.resultJson, ev.isError,
-                                ),
-                            )
-                            is AgentEvent.Final,
-                            is AgentEvent.Thought -> { /* ignore */ }
                         }
-                    }
-            } catch (t: Throwable) {
-                emit(OrchestratorEvent.Failed(workflow.id, t.message ?: "participant failed", t))
-                return
+                } catch (t: Throwable) {
+                    emit(OrchestratorEvent.Failed(workflow.id, t.message ?: "participant failed", t))
+                    return
+                }
+                if (failed != null) {
+                    emit(OrchestratorEvent.Failed(workflow.id, failed!!))
+                    return
+                }
+                val text = output.toString().trim()
+                outputsByRound[round - 1] += text
+                emit(OrchestratorEvent.StepCompleted(workflow.id, stepId, text))
             }
-            if (failed != null) {
-                emit(OrchestratorEvent.Failed(workflow.id, failed!!))
-                return
-            }
-            val text = output.toString().trim()
-            participantOutputs += participantId to text
-            emit(OrchestratorEvent.StepCompleted(workflow.id, stepId, text))
         }
+
+        val finalRoundOutputs = outputsByRound.last()
 
         val moderatorId = workflow.moderatorAgentId
         if (moderatorId == null) {
-            // No moderator — concatenate participant outputs as final answer.
-            val concatenated = participantOutputs.joinToString("\n\n---\n\n") { (id, text) ->
-                "[$id]\n$text"
-            }
+            val concatenated = workflow.participantAgentIds
+                .zip(finalRoundOutputs)
+                .joinToString("\n\n---\n\n") { (id, text) -> "[$id]\n$text" }
             emit(OrchestratorEvent.Completed(workflow.id, concatenated))
             return
         }
@@ -107,9 +120,12 @@ class WorkflowOrchestrator(
 
         val synthPrompt = buildString {
             append("Original question:\n").append(userInput).append("\n\n")
-            append("Participant answers:\n")
-            for ((i, pair) in participantOutputs.withIndex()) {
-                append("[").append(i + 1).append("] ").append(pair.second).append("\n\n")
+            if (totalRounds > 1) {
+                append("(Final round of $totalRounds.) ")
+            }
+            append("Participant final answers:\n")
+            for ((i, text) in finalRoundOutputs.withIndex()) {
+                append("[").append(i + 1).append("] ").append(text).append("\n\n")
             }
             append("Synthesize a final answer drawing on the strongest points from each:")
         }
@@ -150,6 +166,34 @@ class WorkflowOrchestrator(
         val text = finalOutput.toString().trim()
         emit(OrchestratorEvent.StepCompleted(workflow.id, moderatorStepId, text))
         emit(OrchestratorEvent.Completed(workflow.id, text))
+    }
+
+    /** Round 1 = `p-{i}`, rounds 2+ = `p-{i}-r{round}`. ViewModel mirrors this. */
+    private fun stepIdForParticipant(round: Int, participantIndex: Int): String =
+        if (round == 1) "p-$participantIndex" else "p-$participantIndex-r$round"
+
+    private fun buildParticipantPrompt(
+        userInput: String,
+        round: Int,
+        selfIndex: Int,
+        previousOutputs: List<List<String>>,
+    ): String {
+        if (round == 1) return userInput
+        val previousRound = previousOutputs[round - 2]
+        return buildString {
+            append("Original question:\n").append(userInput).append("\n\n")
+            append("Round ").append(round - 1).append(" answers:\n")
+            for ((i, text) in previousRound.withIndex()) {
+                val label = if (i == selfIndex) "[your previous answer]" else "[participant ${i + 1}]"
+                append(label).append("\n").append(text).append("\n\n")
+            }
+            append(
+                "This is round ",
+            ).append(round).append(
+                ". Reconsider the question in light of the other participants' answers and refine your own. " +
+                    "Stay in character (your system role).",
+            )
+        }
     }
 
     private suspend fun FlowCollector<OrchestratorEvent>.runRouter(
