@@ -1,6 +1,8 @@
 package com.mingeek.forge.feature.agents
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -507,8 +510,52 @@ private fun RunCard(index: Int, run: StepRun) {
                 )
             }
             HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
+            for (call in run.toolCalls) {
+                StepToolCallChip(call)
+            }
             androidx.compose.foundation.text.selection.SelectionContainer {
                 Text(if (run.output.isEmpty() && !run.isComplete) "…" else run.output)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StepToolCallChip(call: StepToolCallRecord) {
+    val accent = if (call.isError) MaterialTheme.colorScheme.error
+    else MaterialTheme.colorScheme.tertiary
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 6.dp)
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    ) {
+        Column {
+            val statusSuffix = when {
+                call.isError -> " · error"
+                call.resultJson == null -> " · running"
+                else -> ""
+            }
+            Text(
+                "🔧 " + call.toolName + statusSuffix,
+                style = MaterialTheme.typography.labelMedium,
+                color = accent,
+            )
+            Text(
+                "args: ${call.argumentsJson}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            call.resultJson?.let {
+                Text(
+                    "result: $it",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
             }
         }
     }

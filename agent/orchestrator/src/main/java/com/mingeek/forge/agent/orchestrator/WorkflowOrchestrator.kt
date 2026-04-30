@@ -60,10 +60,18 @@ class WorkflowOrchestrator(
                                 emit(OrchestratorEvent.StepToken(workflow.id, stepId, ev.piece))
                             }
                             is AgentEvent.Failed -> failed = ev.message
+                            is AgentEvent.ToolCall -> emit(
+                                OrchestratorEvent.StepToolCall(
+                                    workflow.id, stepId, ev.name, ev.argumentsJson,
+                                ),
+                            )
+                            is AgentEvent.ToolResult -> emit(
+                                OrchestratorEvent.StepToolResult(
+                                    workflow.id, stepId, ev.name, ev.resultJson, ev.isError,
+                                ),
+                            )
                             is AgentEvent.Final,
-                            is AgentEvent.Thought,
-                            is AgentEvent.ToolCall,
-                            is AgentEvent.ToolResult -> { /* ignore */ }
+                            is AgentEvent.Thought -> { /* ignore */ }
                         }
                     }
             } catch (t: Throwable) {
@@ -117,10 +125,18 @@ class WorkflowOrchestrator(
                             emit(OrchestratorEvent.StepToken(workflow.id, moderatorStepId, ev.piece))
                         }
                         is AgentEvent.Failed -> modFailed = ev.message
+                        is AgentEvent.ToolCall -> emit(
+                            OrchestratorEvent.StepToolCall(
+                                workflow.id, moderatorStepId, ev.name, ev.argumentsJson,
+                            ),
+                        )
+                        is AgentEvent.ToolResult -> emit(
+                            OrchestratorEvent.StepToolResult(
+                                workflow.id, moderatorStepId, ev.name, ev.resultJson, ev.isError,
+                            ),
+                        )
                         is AgentEvent.Final,
-                        is AgentEvent.Thought,
-                        is AgentEvent.ToolCall,
-                        is AgentEvent.ToolResult -> { /* ignore */ }
+                        is AgentEvent.Thought -> { /* ignore */ }
                     }
                 }
         } catch (t: Throwable) {
@@ -164,10 +180,18 @@ class WorkflowOrchestrator(
                             emit(OrchestratorEvent.StepToken(workflow.id, routerStepId, ev.piece))
                         }
                         is AgentEvent.Failed -> routerFailed = ev.message
+                        is AgentEvent.ToolCall -> emit(
+                            OrchestratorEvent.StepToolCall(
+                                workflow.id, routerStepId, ev.name, ev.argumentsJson,
+                            ),
+                        )
+                        is AgentEvent.ToolResult -> emit(
+                            OrchestratorEvent.StepToolResult(
+                                workflow.id, routerStepId, ev.name, ev.resultJson, ev.isError,
+                            ),
+                        )
                         is AgentEvent.Final,
-                        is AgentEvent.Thought,
-                        is AgentEvent.ToolCall,
-                        is AgentEvent.ToolResult -> { /* ignore */ }
+                        is AgentEvent.Thought -> { /* ignore */ }
                     }
                 }
         } catch (t: Throwable) {
@@ -207,10 +231,18 @@ class WorkflowOrchestrator(
                             emit(OrchestratorEvent.StepToken(workflow.id, routedStepId, ev.piece))
                         }
                         is AgentEvent.Failed -> routedFailed = ev.message
+                        is AgentEvent.ToolCall -> emit(
+                            OrchestratorEvent.StepToolCall(
+                                workflow.id, routedStepId, ev.name, ev.argumentsJson,
+                            ),
+                        )
+                        is AgentEvent.ToolResult -> emit(
+                            OrchestratorEvent.StepToolResult(
+                                workflow.id, routedStepId, ev.name, ev.resultJson, ev.isError,
+                            ),
+                        )
                         is AgentEvent.Final,
-                        is AgentEvent.Thought,
-                        is AgentEvent.ToolCall,
-                        is AgentEvent.ToolResult -> { /* ignore */ }
+                        is AgentEvent.Thought -> { /* ignore */ }
                     }
                 }
         } catch (t: Throwable) {
@@ -259,9 +291,17 @@ class WorkflowOrchestrator(
                             is AgentEvent.Failed -> {
                                 failedMessage = ev.message
                             }
-                            is AgentEvent.Thought,
-                            is AgentEvent.ToolCall,
-                            is AgentEvent.ToolResult -> { /* ignore */ }
+                            is AgentEvent.ToolCall -> emit(
+                                OrchestratorEvent.StepToolCall(
+                                    workflow.id, step.id, ev.name, ev.argumentsJson,
+                                ),
+                            )
+                            is AgentEvent.ToolResult -> emit(
+                                OrchestratorEvent.StepToolResult(
+                                    workflow.id, step.id, ev.name, ev.resultJson, ev.isError,
+                                ),
+                            )
+                            is AgentEvent.Thought -> { /* ignore */ }
                         }
                     }
             } catch (t: Throwable) {

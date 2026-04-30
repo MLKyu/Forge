@@ -5,7 +5,10 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mingeek.forge.agent.core.Agent
+import com.mingeek.forge.agent.core.Tool
 import com.mingeek.forge.agent.orchestrator.OrchestratorEvent
+import com.mingeek.forge.agent.tools.CalculatorTool
+import com.mingeek.forge.agent.tools.CurrentTimeTool
 import com.mingeek.forge.agent.orchestrator.Workflow
 import com.mingeek.forge.agent.orchestrator.WorkflowOrchestrator
 import com.mingeek.forge.data.storage.InstalledModel
@@ -37,12 +40,20 @@ data class StepConfig(
     val maxTokens: Int = 384,
 )
 
+data class StepToolCallRecord(
+    val toolName: String,
+    val argumentsJson: String,
+    val resultJson: String? = null,
+    val isError: Boolean = false,
+)
+
 data class StepRun(
     val stepId: String,
     val agentId: String,
     val modelId: String?,
     val output: String = "",
     val isComplete: Boolean = false,
+    val toolCalls: List<StepToolCallRecord> = emptyList(),
 )
 
 enum class PipelinePreset(val displayName: String) {
@@ -431,6 +442,7 @@ class AgentsViewModel(
         } else null
 
         val sessions = SharedSessionRegistry(registry)
+        val tools = activeTools()
         val agents: MutableMap<String, Agent> = mutableMapOf()
         for ((p, model) in participantPairs) {
             agents[p.agentId] = LlmAgent(
@@ -442,6 +454,7 @@ class AgentsViewModel(
                 maxTokens = p.maxTokens,
                 temperature = temperature,
                 sharedSessions = sessions,
+                tools = tools,
             )
         }
         if (moderatorModel != null) {
@@ -454,6 +467,7 @@ class AgentsViewModel(
                 maxTokens = d.moderatorMaxTokens,
                 temperature = temperature,
                 sharedSessions = sessions,
+                tools = tools,
             )
         }
 
@@ -489,6 +503,7 @@ class AgentsViewModel(
         }
 
         val sessions = SharedSessionRegistry(registry)
+        val tools = activeTools()
         val agents: Map<String, Agent> = configured.associate { (step, model) ->
             step.agentId to LlmAgent(
                 id = step.agentId,
@@ -499,6 +514,7 @@ class AgentsViewModel(
                 maxTokens = step.maxTokens,
                 temperature = temperature,
                 sharedSessions = sessions,
+                tools = tools,
             )
         }
 
@@ -533,6 +549,7 @@ class AgentsViewModel(
         }
 
         val sessions = SharedSessionRegistry(registry)
+        val tools = activeTools()
         val routerAgent = LlmAgent(
             id = router.routerAgentId,
             displayName = routerModel.displayName,
@@ -542,6 +559,9 @@ class AgentsViewModel(
             maxTokens = router.routerMaxTokens,
             temperature = 0.0f,
             sharedSessions = sessions,
+            // Router emits a single classification label — no tools or it
+            // confuses the parser.
+            tools = emptyList(),
         )
         val routeAgents = routePairs.associate { (route, model) ->
             route.agentId to LlmAgent(
@@ -553,6 +573,7 @@ class AgentsViewModel(
                 maxTokens = route.maxTokens,
                 temperature = temperature,
                 sharedSessions = sessions,
+                tools = tools,
             )
         }
         val agents: Map<String, Agent> = routeAgents + (router.routerAgentId to routerAgent)
@@ -606,6 +627,37 @@ class AgentsViewModel(
                     if (it.stepId == event.stepId) it.copy(output = it.output + event.piece) else it
                 })
             }
+            is OrchestratorEvent.StepToolCall -> _state.update { current ->
+                current.copy(runs = current.runs.map { run ->
+                    if (run.stepId != event.stepId) run
+                    else run.copy(
+                        // The streamed call text isn't a real answer; clear it
+                        // before the next iteration writes the actual response.
+                        output = "",
+                        toolCalls = run.toolCalls + StepToolCallRecord(
+                            toolName = event.toolName,
+                            argumentsJson = event.argumentsJson,
+                        ),
+                    )
+                })
+            }
+            is OrchestratorEvent.StepToolResult -> _state.update { current ->
+                current.copy(runs = current.runs.map { run ->
+                    if (run.stepId != event.stepId) run
+                    else run.copy(
+                        toolCalls = run.toolCalls.toMutableList().also { list ->
+                            // Resolve the most recent unresolved call with the same tool name.
+                            val idx = list.indexOfLast { it.toolName == event.toolName && it.resultJson == null }
+                            if (idx >= 0) {
+                                list[idx] = list[idx].copy(
+                                    resultJson = event.resultJson,
+                                    isError = event.isError,
+                                )
+                            }
+                        },
+                    )
+                })
+            }
             is OrchestratorEvent.StepCompleted -> _state.update { current ->
                 current.copy(runs = current.runs.map {
                     if (it.stepId == event.stepId) it.copy(isComplete = true) else it
@@ -616,6 +668,13 @@ class AgentsViewModel(
                 it.copy(status = RunStatus.Failed(event.message))
             }
         }
+    }
+
+    private fun activeTools(): List<Tool> =
+        if (settingsStore.toolsEnabled.value) DEFAULT_TOOLS else emptyList()
+
+    private companion object {
+        val DEFAULT_TOOLS: List<Tool> = listOf(CalculatorTool(), CurrentTimeTool())
     }
 
     fun export(uri: Uri, resolver: ContentResolver) {
