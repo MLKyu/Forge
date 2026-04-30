@@ -9,6 +9,7 @@ import com.mingeek.forge.agent.core.Tool
 import com.mingeek.forge.agent.orchestrator.OrchestratorEvent
 import com.mingeek.forge.agent.tools.CalculatorTool
 import com.mingeek.forge.agent.tools.CurrentTimeTool
+import com.mingeek.forge.agent.tools.WordCountTool
 import com.mingeek.forge.agent.orchestrator.Workflow
 import com.mingeek.forge.agent.orchestrator.WorkflowOrchestrator
 import com.mingeek.forge.data.storage.InstalledModel
@@ -768,7 +769,7 @@ class AgentsViewModel(
         if (settingsStore.toolsEnabled.value) DEFAULT_TOOLS else emptyList()
 
     private companion object {
-        val DEFAULT_TOOLS: List<Tool> = listOf(CalculatorTool(), CurrentTimeTool())
+        val DEFAULT_TOOLS: List<Tool> = listOf(CalculatorTool(), CurrentTimeTool(), WordCountTool())
     }
 
     fun export(uri: Uri, resolver: ContentResolver) {
