@@ -24,10 +24,39 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            // Until a proper release keystore exists, sign release with the debug key
+            // so the artifact is installable. Replace before publishing.
+            signingConfig = signingConfigs.getByName("debug")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
+
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/{AL2.0,LGPL2.1}",
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*",
+                "META-INF/licenses/**",
+                "META-INF/*.kotlin_module",
+                "META-INF/native-image/**",
+                "META-INF/proguard/**",
+                "META-INF/versions/9/OSGI-INF/MANIFEST.MF",
+                "kotlin/**.kotlin_builtins",
+                "DebugProbesKt.bin",
+            )
+        }
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
