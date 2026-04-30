@@ -25,6 +25,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -37,6 +39,7 @@ fun AgentsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val resolver = androidx.compose.ui.platform.LocalContext.current.contentResolver
+    val clipboardManager = LocalClipboardManager.current
     val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/markdown"),
     ) { uri ->
@@ -217,6 +220,18 @@ fun AgentsScreen(
                     }
                     OutlinedButton(
                         onClick = {
+                            val text = state.runs
+                                .filter { it.output.isNotBlank() }
+                                .joinToString("\n\n---\n\n") { it.output }
+                            if (text.isNotBlank()) {
+                                clipboardManager.setText(AnnotatedString(text))
+                            }
+                        },
+                        enabled = state.runs.any { it.output.isNotEmpty() } &&
+                            state.status != RunStatus.Running,
+                    ) { Text("Copy") }
+                    OutlinedButton(
+                        onClick = {
                             val name = when (state.mode) {
                                 WorkflowMode.PIPELINE -> "agents-pipeline.md"
                                 WorkflowMode.ROUTER -> "agents-router.md"
@@ -237,6 +252,23 @@ fun AgentsScreen(
             val isMultiRound = state.runs.any { it.stepId.contains("-r") }
             state.runs.forEachIndexed { index, run ->
                 RunCard(index, run, isMultiRound)
+            }
+            if (state.mode == WorkflowMode.ROUTER) {
+                val routerOutput = state.runs.firstOrNull { it.stepId == "router" }?.output
+                val routedComplete = state.runs.any { it.stepId == "routed" && it.isComplete }
+                if (!routerOutput.isNullOrBlank() && routedComplete) {
+                    val matched = state.router.routes.any { route ->
+                        routerOutput.contains(route.key, ignoreCase = true)
+                    }
+                    if (!matched) {
+                        val firstKey = state.router.routes.firstOrNull()?.key ?: "—"
+                        Text(
+                            "⚠ Router output didn't match any route key — fell back to first route ($firstKey).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
             }
         }
     }
@@ -272,6 +304,7 @@ private fun StepCard(
                     androidx.compose.material3.TextButton(onClick = onRemove) { Text("Remove") }
                 }
             }
+            DeletedModelNotice(step.modelId, installed)
             Text("Pick a model", style = MaterialTheme.typography.bodySmall)
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
@@ -330,6 +363,7 @@ private fun RouterCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            DeletedModelNotice(router.routerModelId, installed)
             Text("Pick a model", style = MaterialTheme.typography.bodySmall)
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
@@ -383,6 +417,7 @@ private fun RouteCard(
                 label = { Text("Match key") },
                 singleLine = true,
             )
+            DeletedModelNotice(route.modelId, installed)
             Text("Pick a model", style = MaterialTheme.typography.bodySmall)
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
@@ -429,6 +464,7 @@ private fun ParticipantCard(
                     androidx.compose.material3.TextButton(onClick = onRemove) { Text("Remove") }
                 }
             }
+            DeletedModelNotice(participant.modelId, installed)
             Text("Pick a model", style = MaterialTheme.typography.bodySmall)
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
@@ -496,6 +532,7 @@ private fun ModeratorCard(
                 )
             }
             if (debate.moderatorEnabled) {
+                DeletedModelNotice(debate.moderatorModelId, installed)
                 Text("Pick a model", style = MaterialTheme.typography.bodySmall)
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
@@ -529,6 +566,17 @@ private fun ModeratorCard(
             }
         }
     }
+}
+
+@Composable
+private fun DeletedModelNotice(modelId: String?, installed: List<InstalledModel>) {
+    val isDeleted = modelId != null && installed.none { it.id == modelId }
+    if (!isDeleted) return
+    Text(
+        "⚠ Saved model no longer installed — pick another below.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.error,
+    )
 }
 
 /**
