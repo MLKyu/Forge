@@ -106,6 +106,23 @@ fun SettingsScreen(
                 }
                 Switch(checked = state.toolsEnabled, onCheckedChange = viewModel::onToolsEnabledChanged)
             }
+            if (state.toolsEnabled) {
+                Text(
+                    "Tool loop max iterations: ${state.toolMaxIterations}",
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    "How many times the model can call a tool in one turn before we stop the loop. Higher = more chained tool use, but a confused model can burn tokens.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Slider(
+                    value = state.toolMaxIterations.toFloat(),
+                    onValueChange = { viewModel.onToolMaxIterationsChanged(it.toInt()) },
+                    valueRange = 1f..10f,
+                    steps = 8,
+                )
+            }
         }
 
         SectionCard(title = "Device") {

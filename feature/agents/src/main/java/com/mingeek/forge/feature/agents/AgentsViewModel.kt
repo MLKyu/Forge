@@ -517,6 +517,7 @@ class AgentsViewModel(
 
         val sessions = SharedSessionRegistry(registry)
         val tools = activeTools()
+        val maxIter = settingsStore.toolMaxIterations.value
         val agents: MutableMap<String, Agent> = mutableMapOf()
         for ((p, model) in participantPairs) {
             agents[p.agentId] = LlmAgent(
@@ -529,6 +530,7 @@ class AgentsViewModel(
                 temperature = temperature,
                 sharedSessions = sessions,
                 tools = tools,
+                maxToolIterations = maxIter,
             )
         }
         if (moderatorModel != null) {
@@ -542,6 +544,7 @@ class AgentsViewModel(
                 temperature = temperature,
                 sharedSessions = sessions,
                 tools = tools,
+                maxToolIterations = maxIter,
             )
         }
 
@@ -587,6 +590,7 @@ class AgentsViewModel(
 
         val sessions = SharedSessionRegistry(registry)
         val tools = activeTools()
+        val maxIter = settingsStore.toolMaxIterations.value
         val agents: Map<String, Agent> = configured.associate { (step, model) ->
             step.agentId to LlmAgent(
                 id = step.agentId,
@@ -598,6 +602,7 @@ class AgentsViewModel(
                 temperature = temperature,
                 sharedSessions = sessions,
                 tools = tools,
+                maxToolIterations = maxIter,
             )
         }
 
@@ -633,6 +638,7 @@ class AgentsViewModel(
 
         val sessions = SharedSessionRegistry(registry)
         val tools = activeTools()
+        val maxIter = settingsStore.toolMaxIterations.value
         val routerAgent = LlmAgent(
             id = router.routerAgentId,
             displayName = routerModel.displayName,
@@ -657,6 +663,7 @@ class AgentsViewModel(
                 temperature = temperature,
                 sharedSessions = sessions,
                 tools = tools,
+                maxToolIterations = maxIter,
             )
         }
         val agents: Map<String, Agent> = routeAgents + (router.routerAgentId to routerAgent)
