@@ -12,6 +12,7 @@ import com.mingeek.forge.data.storage.InstalledModel
 import com.mingeek.forge.data.storage.ModelStorage
 import com.mingeek.forge.data.storage.SettingsStore
 import com.mingeek.forge.runtime.registry.RuntimeRegistry
+import com.mingeek.forge.runtime.registry.SharedSessionRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -429,6 +430,7 @@ class AgentsViewModel(
             }
         } else null
 
+        val sessions = SharedSessionRegistry(registry)
         val agents: MutableMap<String, Agent> = mutableMapOf()
         for ((p, model) in participantPairs) {
             agents[p.agentId] = LlmAgent(
@@ -439,6 +441,7 @@ class AgentsViewModel(
                 systemPrompt = p.systemPrompt.takeIf { it.isNotBlank() },
                 maxTokens = p.maxTokens,
                 temperature = temperature,
+                sharedSessions = sessions,
             )
         }
         if (moderatorModel != null) {
@@ -450,6 +453,7 @@ class AgentsViewModel(
                 systemPrompt = d.moderatorSystemPrompt.takeIf { it.isNotBlank() },
                 maxTokens = d.moderatorMaxTokens,
                 temperature = temperature,
+                sharedSessions = sessions,
             )
         }
 
@@ -471,7 +475,7 @@ class AgentsViewModel(
         }
         _state.update { it.copy(status = RunStatus.Running, runs = initialRuns) }
 
-        startWorkflow(agents, workflow, current.userPrompt)
+        startWorkflow(agents, workflow, current.userPrompt, sessions)
     }
 
     private fun runPipeline(current: AgentsUiState, temperature: Float) {
@@ -484,6 +488,7 @@ class AgentsViewModel(
             return
         }
 
+        val sessions = SharedSessionRegistry(registry)
         val agents: Map<String, Agent> = configured.associate { (step, model) ->
             step.agentId to LlmAgent(
                 id = step.agentId,
@@ -493,6 +498,7 @@ class AgentsViewModel(
                 systemPrompt = step.systemPrompt.takeIf { it.isNotBlank() },
                 maxTokens = step.maxTokens,
                 temperature = temperature,
+                sharedSessions = sessions,
             )
         }
 
@@ -507,7 +513,7 @@ class AgentsViewModel(
         }
         _state.update { it.copy(status = RunStatus.Running, runs = initialRuns) }
 
-        startWorkflow(agents, workflow, current.userPrompt)
+        startWorkflow(agents, workflow, current.userPrompt, sessions)
     }
 
     private fun runRouter(current: AgentsUiState, temperature: Float) {
@@ -526,6 +532,7 @@ class AgentsViewModel(
             return
         }
 
+        val sessions = SharedSessionRegistry(registry)
         val routerAgent = LlmAgent(
             id = router.routerAgentId,
             displayName = routerModel.displayName,
@@ -534,6 +541,7 @@ class AgentsViewModel(
             systemPrompt = router.routerSystemPrompt.takeIf { it.isNotBlank() },
             maxTokens = router.routerMaxTokens,
             temperature = 0.0f,
+            sharedSessions = sessions,
         )
         val routeAgents = routePairs.associate { (route, model) ->
             route.agentId to LlmAgent(
@@ -544,6 +552,7 @@ class AgentsViewModel(
                 systemPrompt = route.systemPrompt.takeIf { it.isNotBlank() },
                 maxTokens = route.maxTokens,
                 temperature = temperature,
+                sharedSessions = sessions,
             )
         }
         val agents: Map<String, Agent> = routeAgents + (router.routerAgentId to routerAgent)
@@ -561,10 +570,15 @@ class AgentsViewModel(
         )
         _state.update { it.copy(status = RunStatus.Running, runs = initialRuns) }
 
-        startWorkflow(agents, workflow, current.userPrompt)
+        startWorkflow(agents, workflow, current.userPrompt, sessions)
     }
 
-    private fun startWorkflow(agents: Map<String, Agent>, workflow: Workflow, input: String) {
+    private fun startWorkflow(
+        agents: Map<String, Agent>,
+        workflow: Workflow,
+        input: String,
+        sessions: SharedSessionRegistry,
+    ) {
         val orchestrator = WorkflowOrchestrator(agents)
         runJob = viewModelScope.launch {
             try {
@@ -575,6 +589,10 @@ class AgentsViewModel(
                 _state.update {
                     it.copy(status = RunStatus.Failed(t.message ?: "workflow failed"))
                 }
+            } finally {
+                // Release every session this workflow loaded — including on
+                // job cancellation, errors, and normal completion.
+                sessions.releaseAll()
             }
         }
     }
