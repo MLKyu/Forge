@@ -4,6 +4,10 @@ plugins {
     alias(libs.plugins.google.devtools.ksp)
 }
 
+private val appName = "Forge"
+private val appVersionName = "1.0"
+private val appVersionCode = 1
+
 android {
     namespace = "com.mingeek.forge"
     compileSdk {
@@ -16,8 +20,8 @@ android {
         applicationId = "com.mingeek.forge"
         minSdk = 36
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -64,6 +68,12 @@ android {
     buildFeatures {
         compose = true
     }
+}
+
+// Output APK filename: Forge-1.0-release.apk / Forge-1.0-debug.apk
+// Gradle appends "-${variantName}" automatically when archivesName is set.
+base {
+    archivesName.set("$appName-$appVersionName")
 }
 
 dependencies {
