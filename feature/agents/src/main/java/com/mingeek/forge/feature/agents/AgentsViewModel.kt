@@ -82,6 +82,7 @@ data class DebateConfig(
         ParticipantConfig("participant-con", null,
             "You are a skeptic. Identify weaknesses, risks, and counterarguments."),
     ),
+    val maxRounds: Int = 1,
     val moderatorEnabled: Boolean = true,
     val moderatorAgentId: String = "moderator",
     val moderatorModelId: String? = null,
@@ -396,6 +397,13 @@ class AgentsViewModel(
         }
     }
 
+    fun setDebateMaxRounds(value: Int) {
+        if (_state.value.status == RunStatus.Running) return
+        _state.update {
+            it.copy(debate = it.debate.copy(maxRounds = value.coerceIn(1, 3)))
+        }
+    }
+
     fun setModeratorEnabled(enabled: Boolean) {
         _state.update { it.copy(debate = it.debate.copy(moderatorEnabled = enabled)) }
     }
@@ -476,12 +484,21 @@ class AgentsViewModel(
             name = "Debate",
             participantAgentIds = d.participants.map { it.agentId },
             moderatorAgentId = if (d.moderatorEnabled) d.moderatorAgentId else null,
-            maxRounds = 1,
+            maxRounds = d.maxRounds.coerceAtLeast(1),
         )
 
+        val rounds = d.maxRounds.coerceAtLeast(1)
         val initialRuns = buildList {
-            d.participants.forEachIndexed { i, p ->
-                add(StepRun(stepId = "p-$i", agentId = p.agentId, modelId = p.modelId))
+            for (round in 1..rounds) {
+                d.participants.forEachIndexed { i, p ->
+                    add(
+                        StepRun(
+                            stepId = stepIdForParticipant(round, i),
+                            agentId = p.agentId,
+                            modelId = p.modelId,
+                        )
+                    )
+                }
             }
             if (d.moderatorEnabled) {
                 add(StepRun(stepId = "moderator", agentId = d.moderatorAgentId, modelId = d.moderatorModelId))
@@ -617,6 +634,10 @@ class AgentsViewModel(
             }
         }
     }
+
+    /** Same encoding the orchestrator uses, kept in sync. */
+    private fun stepIdForParticipant(round: Int, participantIndex: Int): String =
+        if (round == 1) "p-$participantIndex" else "p-$participantIndex-r$round"
 
     private fun handleEvent(event: OrchestratorEvent) {
         when (event) {
