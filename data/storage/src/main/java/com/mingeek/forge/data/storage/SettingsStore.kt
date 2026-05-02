@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +59,10 @@ class SettingsStore(context: Context) {
         .map { it[AGENTS_DEBATE_JSON] }
         .stateIn(scope, SharingStarted.Eagerly, null)
 
+    val pinnedModelIds: StateFlow<Set<String>> = ds.data
+        .map { it[PINNED_MODEL_IDS] ?: emptySet() }
+        .stateIn(scope, SharingStarted.Eagerly, emptySet())
+
     suspend fun setHfToken(token: String?) {
         ds.edit { prefs ->
             if (token.isNullOrBlank()) prefs.remove(HF_TOKEN) else prefs[HF_TOKEN] = token
@@ -96,6 +101,20 @@ class SettingsStore(context: Context) {
         ds.edit { if (json == null) it.remove(AGENTS_DEBATE_JSON) else it[AGENTS_DEBATE_JSON] = json }
     }
 
+    suspend fun togglePinnedModel(id: String) {
+        ds.edit { prefs ->
+            val current = prefs[PINNED_MODEL_IDS] ?: emptySet()
+            prefs[PINNED_MODEL_IDS] = if (id in current) current - id else current + id
+        }
+    }
+
+    suspend fun unpinModel(id: String) {
+        ds.edit { prefs ->
+            val current = prefs[PINNED_MODEL_IDS] ?: return@edit
+            if (id in current) prefs[PINNED_MODEL_IDS] = current - id
+        }
+    }
+
     private companion object {
         const val DEFAULT_TOOL_MAX_ITERATIONS = 4
         val HF_TOKEN: Preferences.Key<String> = stringPreferencesKey("hf_token")
@@ -107,5 +126,6 @@ class SettingsStore(context: Context) {
         val AGENTS_PIPELINE_JSON: Preferences.Key<String> = stringPreferencesKey("agents_pipeline_json")
         val AGENTS_ROUTER_JSON: Preferences.Key<String> = stringPreferencesKey("agents_router_json")
         val AGENTS_DEBATE_JSON: Preferences.Key<String> = stringPreferencesKey("agents_debate_json")
+        val PINNED_MODEL_IDS: Preferences.Key<Set<String>> = stringSetPreferencesKey("pinned_model_ids")
     }
 }

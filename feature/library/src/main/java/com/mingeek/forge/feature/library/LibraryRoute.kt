@@ -9,6 +9,7 @@ import androidx.navigation.compose.composable
 import com.mingeek.forge.core.hardware.DeviceFitScorer
 import com.mingeek.forge.data.storage.BenchmarkStore
 import com.mingeek.forge.data.storage.ModelStorage
+import com.mingeek.forge.data.storage.SettingsStore
 import com.mingeek.forge.runtime.registry.BenchmarkRunner
 
 const val LibraryRoute = "library"
@@ -18,12 +19,15 @@ fun NavGraphBuilder.libraryScreen(
     benchmarkStore: BenchmarkStore,
     benchmarkRunner: BenchmarkRunner,
     fitScorer: DeviceFitScorer,
+    settingsStore: SettingsStore,
     modifier: Modifier = Modifier,
 ) {
     composable(LibraryRoute) {
         val viewModel: LibraryViewModel = viewModel(
             factory = viewModelFactory {
-                initializer { LibraryViewModel(storage, benchmarkStore, benchmarkRunner, fitScorer) }
+                initializer {
+                    LibraryViewModel(storage, benchmarkStore, benchmarkRunner, fitScorer, settingsStore)
+                }
             }
         )
         LibraryScreen(viewModel = viewModel, modifier = modifier)
