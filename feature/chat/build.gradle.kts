@@ -31,6 +31,8 @@ dependencies {
     implementation(project(":runtime:registry"))
     implementation(project(":agent:core"))
     implementation(project(":agent:tools"))
+    implementation(project(":agent:memory"))
+    implementation(libs.moshi.kotlin)
 
     implementation(libs.androidx.core.ktx)
     implementation(platform(libs.androidx.compose.bom))

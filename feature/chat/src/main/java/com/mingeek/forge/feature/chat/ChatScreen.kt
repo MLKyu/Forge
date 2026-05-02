@@ -75,6 +75,9 @@ fun ChatScreen(
                 onUnload = viewModel::unload,
                 onExport = { exportLauncher.launch("chat.md") },
                 onSwap = viewModel::swapModel,
+                onNewConversation = viewModel::newConversation,
+                onResumeConversation = viewModel::resumeConversation,
+                onDeleteConversation = viewModel::deleteConversation,
             )
         }
     }
@@ -140,11 +143,15 @@ private fun ChatBody(
     onUnload: () -> Unit,
     onExport: () -> Unit,
     onSwap: (InstalledModel) -> Unit,
+    onNewConversation: () -> Unit,
+    onResumeConversation: (String) -> Unit,
+    onDeleteConversation: (String) -> Unit,
 ) {
     val model = ready.model
     val template = ready.template
     val listState = rememberLazyListState()
     var showSwapSheet by remember { mutableStateOf(false) }
+    var showConversationsSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.content?.length) {
         if (state.messages.isNotEmpty()) {
@@ -165,6 +172,11 @@ private fun ChatBody(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            TextButton(
+                onClick = { showConversationsSheet = true },
+                enabled = state.pastConversations.isNotEmpty(),
+            ) { Text("Chats") }
+            TextButton(onClick = onNewConversation) { Text("New") }
             TextButton(onClick = { showSwapSheet = true }, enabled = installed.size > 1) {
                 Text("Swap")
             }
@@ -205,6 +217,52 @@ private fun ChatBody(
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showConversationsSheet) {
+            ModalBottomSheet(onDismissRequest = { showConversationsSheet = false }) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Past chats", fontWeight = FontWeight.Medium)
+                    Text(
+                        "Tap to resume; the current conversation is auto-saved before switching.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+                    )
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(state.pastConversations, key = { it.id }) { conv ->
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            showConversationsSheet = false
+                                            onResumeConversation(conv.id)
+                                        }
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(conv.title, fontWeight = FontWeight.Medium)
+                                        Text(
+                                            "${conv.messageCount} message(s)" +
+                                                (conv.lastModelId?.let { " · $it" } ?: ""),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    TextButton(onClick = { onDeleteConversation(conv.id) }) {
+                                        Text("Delete")
+                                    }
                                 }
                             }
                         }

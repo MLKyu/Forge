@@ -74,4 +74,8 @@ class ForgeContainer(appContext: Context) {
     val agentRunHistory: MemoryStore = FileMemoryStore(
         File(appContext.filesDir, "agents/run_history.json"),
     )
+
+    val chatHistory: MemoryStore = FileMemoryStore(
+        File(appContext.filesDir, "chat/history.json"),
+    )
 }
