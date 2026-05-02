@@ -13,6 +13,7 @@ import com.mingeek.forge.data.discovery.HuggingFaceBlogSource
 import com.mingeek.forge.data.discovery.HuggingFaceLikedSource
 import com.mingeek.forge.data.discovery.HuggingFaceRecentSource
 import com.mingeek.forge.data.discovery.HuggingFaceTrendingSource
+import com.mingeek.forge.data.discovery.RedditLocalLlamaSource
 import com.mingeek.forge.data.download.ModelDownloader
 import com.mingeek.forge.data.storage.BenchmarkStore
 import com.mingeek.forge.data.storage.ModelStorage
@@ -70,6 +71,7 @@ class ForgeContainer(appContext: Context) {
             HuggingFaceRecentSource(huggingFaceApi),
             HuggingFaceLikedSource(huggingFaceApi),
             HuggingFaceBlogSource(okHttpClient),
+            RedditLocalLlamaSource(okHttpClient),
         ),
     )
 
