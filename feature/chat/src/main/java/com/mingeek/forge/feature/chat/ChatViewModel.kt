@@ -63,7 +63,13 @@ data class ChatMessage(
     val timestampMs: Long = System.currentTimeMillis(),
     val toolCalls: List<ToolCallEntry> = emptyList(),
 ) {
-    enum class Role { USER, ASSISTANT }
+    /**
+     * SYSTEM is used for in-line notes the user didn't type and the model
+     * didn't generate — currently only "switched model" markers. Keep them
+     * out of any prompt construction (only USER + ASSISTANT turns get
+     * formatted into the chat template).
+     */
+    enum class Role { USER, ASSISTANT, SYSTEM }
 }
 
 data class ChatUiState(
@@ -90,40 +96,88 @@ class ChatViewModel(
         _state.update { it.copy(draft = text) }
     }
 
+    /**
+     * Swap to [model] without dropping the conversation. Cancels generation,
+     * unloads the old session, loads the new one, and inserts a system note
+     * so the user can see where the swap happened. The messages list is
+     * preserved — both halves share the same prompt history.
+     */
+    fun swapModel(model: InstalledModel) {
+        val current = _state.value.sessionState as? SessionState.Ready ?: run {
+            // No active session yet — fall back to the regular load that
+            // also clears messages.
+            loadModel(model)
+            return
+        }
+        if (current.model.id == model.id) return
+        viewModelScope.launch {
+            generationJob?.cancel()
+            unloadInternal()
+            val note = ChatMessage(
+                id = UUID.randomUUID().toString(),
+                role = ChatMessage.Role.SYSTEM,
+                content = "Switched to ${model.displayName}",
+                timestampMs = System.currentTimeMillis(),
+            )
+            _state.update {
+                it.copy(
+                    sessionState = SessionState.Loading,
+                    messages = it.messages + note,
+                )
+            }
+            doLoad(model, preserveMessages = true)
+        }
+    }
+
     fun loadModel(model: InstalledModel) {
         viewModelScope.launch {
             unloadInternal()
             _state.update { it.copy(sessionState = SessionState.Loading, messages = emptyList()) }
+            doLoad(model)
+        }
+    }
 
-            val runtimeId = runCatching { RuntimeId.valueOf(model.recommendedRuntime) }
-                .getOrDefault(RuntimeId.LLAMA_CPP)
-            val runtime = registry.pick(model.format, runtimeId)
-            if (runtime == null) {
-                _state.update { it.copy(sessionState = SessionState.Failed("No runtime supports ${model.format}")) }
-                return@launch
+    private suspend fun doLoad(model: InstalledModel, preserveMessages: Boolean = false) {
+        val runtimeId = runCatching { RuntimeId.valueOf(model.recommendedRuntime) }
+            .getOrDefault(RuntimeId.LLAMA_CPP)
+        val runtime = registry.pick(model.format, runtimeId)
+        if (runtime == null) {
+            _state.update { it.copy(sessionState = SessionState.Failed("No runtime supports ${model.format}")) }
+            return
+        }
+
+        try {
+            val loaded = runtime.load(
+                ModelHandle(
+                    modelId = model.id,
+                    modelPath = model.filePath,
+                    format = model.format,
+                ),
+                LoadConfig(
+                    contextLength = model.contextLength.coerceAtMost(4096),
+                    threads = 0,
+                ),
+            )
+            val template = loaded.chatTemplate
+                ?.let { ChatTemplate.fromChatTemplateString(it) }
+                ?: ChatTemplate.detect(model.id, model.fileName)
+            storage.markUsed(model.id)
+            _state.update {
+                it.copy(sessionState = SessionState.Ready(loaded.sessionId, model, template))
             }
-
-            try {
-                val loaded = runtime.load(
-                    ModelHandle(
-                        modelId = model.id,
-                        modelPath = model.filePath,
-                        format = model.format,
-                    ),
-                    LoadConfig(
-                        contextLength = model.contextLength.coerceAtMost(4096),
-                        threads = 0,
-                    ),
-                )
-                val template = loaded.chatTemplate
-                    ?.let { ChatTemplate.fromChatTemplateString(it) }
-                    ?: ChatTemplate.detect(model.id, model.fileName)
-                storage.markUsed(model.id)
+        } catch (t: Throwable) {
+            // On failure during a swap we still keep the preserved messages;
+            // user can retry with a different model.
+            _state.update { it.copy(sessionState = SessionState.Failed(t.message ?: "load failed")) }
+            if (preserveMessages) {
+                // Fold an error note in so the system marker isn't dangling.
                 _state.update {
-                    it.copy(sessionState = SessionState.Ready(loaded.sessionId, model, template))
+                    it.copy(messages = it.messages + ChatMessage(
+                        id = UUID.randomUUID().toString(),
+                        role = ChatMessage.Role.SYSTEM,
+                        content = "Swap failed: ${t.message ?: "load error"}",
+                    ))
                 }
-            } catch (t: Throwable) {
-                _state.update { it.copy(sessionState = SessionState.Failed(t.message ?: "load failed")) }
             }
         }
     }
@@ -193,6 +247,8 @@ class ChatViewModel(
         }
         for (m in _state.value.messages) {
             if (m.id == assistantMsg.id) continue
+            // SYSTEM notes (e.g. "Switched to X") never get sent to the model.
+            if (m.role == ChatMessage.Role.SYSTEM) continue
             baseTurns += ChatTemplate.Turn(
                 role = if (m.role == ChatMessage.Role.USER) ChatTemplate.Turn.Role.USER
                 else ChatTemplate.Turn.Role.ASSISTANT,
@@ -371,13 +427,20 @@ class ChatViewModel(
                                 w.append("---\n\n")
                             }
                             for (m in snapshot.messages) {
-                                val role = if (m.role == ChatMessage.Role.USER) "User" else "Assistant"
-                                w.append("## ").append(role).append(" — ").append(EXPORT_TIME.format(Instant.ofEpochMilli(m.timestampMs))).append("\n\n")
-                                m.usage?.let { u ->
-                                    w.append("_P:").append(u.promptTokens.toString()).append(" C:").append(u.completionTokens.toString()).append("_\n\n")
+                                when (m.role) {
+                                    ChatMessage.Role.SYSTEM -> {
+                                        w.append("> _").append(m.content).append("_\n\n")
+                                    }
+                                    else -> {
+                                        val role = if (m.role == ChatMessage.Role.USER) "User" else "Assistant"
+                                        w.append("## ").append(role).append(" — ").append(EXPORT_TIME.format(Instant.ofEpochMilli(m.timestampMs))).append("\n\n")
+                                        m.usage?.let { u ->
+                                            w.append("_P:").append(u.promptTokens.toString()).append(" C:").append(u.completionTokens.toString()).append("_\n\n")
+                                        }
+                                        w.append(m.content.ifBlank { "_(empty)_" })
+                                        w.append("\n\n")
+                                    }
                                 }
-                                w.append(m.content.ifBlank { "_(empty)_" })
-                                w.append("\n\n")
                             }
                         }
                     }
