@@ -32,6 +32,7 @@ dependencies {
     implementation(project(":agent:core"))
     implementation(project(":agent:orchestrator"))
     implementation(project(":agent:tools"))
+    implementation(project(":agent:memory"))
 
     implementation(libs.androidx.core.ktx)
     implementation(platform(libs.androidx.compose.bom))
