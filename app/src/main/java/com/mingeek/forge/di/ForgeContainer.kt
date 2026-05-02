@@ -9,6 +9,7 @@ import com.mingeek.forge.data.catalog.huggingface.HuggingFaceClient
 import com.mingeek.forge.agent.memory.MemoryStore
 import com.mingeek.forge.data.agents.FileMemoryStore
 import com.mingeek.forge.data.discovery.DiscoveryRepository
+import com.mingeek.forge.data.discovery.HuggingFaceBlogSource
 import com.mingeek.forge.data.discovery.HuggingFaceLikedSource
 import com.mingeek.forge.data.discovery.HuggingFaceRecentSource
 import com.mingeek.forge.data.discovery.HuggingFaceTrendingSource
@@ -68,6 +69,7 @@ class ForgeContainer(appContext: Context) {
             HuggingFaceTrendingSource(huggingFaceApi),
             HuggingFaceRecentSource(huggingFaceApi),
             HuggingFaceLikedSource(huggingFaceApi),
+            HuggingFaceBlogSource(okHttpClient),
         ),
     )
 

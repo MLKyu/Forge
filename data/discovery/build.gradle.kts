@@ -23,4 +23,5 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":data:catalog"))
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.okhttp)
 }
