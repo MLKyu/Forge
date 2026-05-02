@@ -1,6 +1,7 @@
 package com.mingeek.forge.feature.chat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -25,6 +27,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,12 +67,14 @@ fun ChatScreen(
             is SessionState.Ready -> ChatBody(
                 ready = s,
                 state = state,
+                installed = installed,
                 onDraftChanged = viewModel::onDraftChanged,
                 onSend = viewModel::send,
                 onCancel = viewModel::cancelGeneration,
                 onClear = viewModel::clearMessages,
                 onUnload = viewModel::unload,
                 onExport = { exportLauncher.launch("chat.md") },
+                onSwap = viewModel::swapModel,
             )
         }
     }
@@ -120,20 +127,24 @@ private fun ModelPicker(
     }
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatBody(
     ready: SessionState.Ready,
     state: ChatUiState,
+    installed: List<InstalledModel>,
     onDraftChanged: (String) -> Unit,
     onSend: () -> Unit,
     onCancel: () -> Unit,
     onClear: () -> Unit,
     onUnload: () -> Unit,
     onExport: () -> Unit,
+    onSwap: (InstalledModel) -> Unit,
 ) {
     val model = ready.model
     val template = ready.template
     val listState = rememberLazyListState()
+    var showSwapSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.content?.length) {
         if (state.messages.isNotEmpty()) {
@@ -154,11 +165,53 @@ private fun ChatBody(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            TextButton(onClick = { showSwapSheet = true }, enabled = installed.size > 1) {
+                Text("Swap")
+            }
             TextButton(onClick = onExport, enabled = state.messages.isNotEmpty()) { Text("Export") }
             TextButton(onClick = onClear, enabled = state.messages.isNotEmpty()) { Text("Clear") }
             TextButton(onClick = onUnload) { Text("Unload") }
         }
         HorizontalDivider()
+
+        if (showSwapSheet) {
+            ModalBottomSheet(onDismissRequest = { showSwapSheet = false }) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Swap model", fontWeight = FontWeight.Medium)
+                    Text(
+                        "Conversation history is preserved; the new model takes over from the next turn.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+                    )
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        val others = installed.filter { it.id != model.id }
+                        items(others, key = { it.id }) { other ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showSwapSheet = false
+                                        onSwap(other)
+                                    },
+                            ) {
+                                Column(Modifier.padding(12.dp)) {
+                                    Text(other.displayName, fontWeight = FontWeight.Medium)
+                                    Text(
+                                        "${other.fileName} · ${other.quantization.name}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         LazyColumn(
             state = listState,
@@ -193,6 +246,16 @@ private fun ChatBody(
 
 @Composable
 private fun MessageBubble(msg: ChatMessage) {
+    if (msg.role == ChatMessage.Role.SYSTEM) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            Text(
+                "— ${msg.content} —",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        return
+    }
     val isUser = msg.role == ChatMessage.Role.USER
     Column(
         modifier = Modifier.fillMaxWidth(),
