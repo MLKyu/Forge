@@ -46,6 +46,7 @@ fun LibraryScreen(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val sort by viewModel.sort.collectAsStateWithLifecycle()
     val importStatus by viewModel.importStatus.collectAsStateWithLifecycle()
+    val cleanupReport by viewModel.lastCleanupReport.collectAsStateWithLifecycle()
     var pendingDelete by remember { mutableStateOf<InstalledModel?>(null) }
 
     val importLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -101,6 +102,15 @@ fun LibraryScreen(
                 color = if (msg.startsWith("Import failed") || msg.startsWith("Unsupported"))
                     MaterialTheme.colorScheme.error
                 else MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
+        }
+
+        cleanupReport?.let { msg ->
+            Text(
+                msg,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.tertiary,
                 modifier = Modifier.padding(bottom = 8.dp),
             )
         }

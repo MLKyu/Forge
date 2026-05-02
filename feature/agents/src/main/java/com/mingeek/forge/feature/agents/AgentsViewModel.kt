@@ -516,7 +516,7 @@ class AgentsViewModel(
             }
         } else null
 
-        val sessions = SharedSessionRegistry(registry)
+        val sessions = SharedSessionRegistry(registry, onLoaded = { storage.markUsed(it) })
         val tools = activeTools()
         val maxIter = settingsStore.toolMaxIterations.value
         val agents: MutableMap<String, Agent> = mutableMapOf()
@@ -589,7 +589,7 @@ class AgentsViewModel(
             return
         }
 
-        val sessions = SharedSessionRegistry(registry)
+        val sessions = SharedSessionRegistry(registry, onLoaded = { storage.markUsed(it) })
         val tools = activeTools()
         val maxIter = settingsStore.toolMaxIterations.value
         val agents: Map<String, Agent> = configured.associate { (step, model) ->
@@ -637,7 +637,7 @@ class AgentsViewModel(
             return
         }
 
-        val sessions = SharedSessionRegistry(registry)
+        val sessions = SharedSessionRegistry(registry, onLoaded = { storage.markUsed(it) })
         val tools = activeTools()
         val maxIter = settingsStore.toolMaxIterations.value
         val routerAgent = LlmAgent(

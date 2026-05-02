@@ -63,6 +63,15 @@ class SettingsStore(context: Context) {
         .map { it[PINNED_MODEL_IDS] ?: emptySet() }
         .stateIn(scope, SharingStarted.Eagerly, emptySet())
 
+    val autoCleanupEnabled: StateFlow<Boolean> = ds.data
+        .map { it[AUTO_CLEANUP_ENABLED] ?: false }
+        .stateIn(scope, SharingStarted.Eagerly, false)
+
+    /** Cleanup budget in gigabytes (1..50). */
+    val autoCleanupBudgetGb: StateFlow<Int> = ds.data
+        .map { (it[AUTO_CLEANUP_BUDGET_GB] ?: 5).coerceIn(1, 50) }
+        .stateIn(scope, SharingStarted.Eagerly, 5)
+
     suspend fun setHfToken(token: String?) {
         ds.edit { prefs ->
             if (token.isNullOrBlank()) prefs.remove(HF_TOKEN) else prefs[HF_TOKEN] = token
@@ -115,6 +124,14 @@ class SettingsStore(context: Context) {
         }
     }
 
+    suspend fun setAutoCleanupEnabled(enabled: Boolean) {
+        ds.edit { it[AUTO_CLEANUP_ENABLED] = enabled }
+    }
+
+    suspend fun setAutoCleanupBudgetGb(value: Int) {
+        ds.edit { it[AUTO_CLEANUP_BUDGET_GB] = value.coerceIn(1, 50) }
+    }
+
     private companion object {
         const val DEFAULT_TOOL_MAX_ITERATIONS = 4
         val HF_TOKEN: Preferences.Key<String> = stringPreferencesKey("hf_token")
@@ -127,5 +144,7 @@ class SettingsStore(context: Context) {
         val AGENTS_ROUTER_JSON: Preferences.Key<String> = stringPreferencesKey("agents_router_json")
         val AGENTS_DEBATE_JSON: Preferences.Key<String> = stringPreferencesKey("agents_debate_json")
         val PINNED_MODEL_IDS: Preferences.Key<Set<String>> = stringSetPreferencesKey("pinned_model_ids")
+        val AUTO_CLEANUP_ENABLED: Preferences.Key<Boolean> = booleanPreferencesKey("auto_cleanup_enabled")
+        val AUTO_CLEANUP_BUDGET_GB: Preferences.Key<Int> = intPreferencesKey("auto_cleanup_budget_gb")
     }
 }

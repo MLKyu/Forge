@@ -11,6 +11,8 @@ import com.mingeek.forge.runtime.core.Token
 
 class BenchmarkRunner(
     private val registry: RuntimeRegistry,
+    /** Called after a successful load so the LRU pass keeps benchmarked models. */
+    private val onLoaded: (suspend (String) -> Unit)? = null,
 ) {
 
     suspend fun run(model: InstalledModel, maxTokens: Int = 64): BenchmarkRecord? {
@@ -24,6 +26,7 @@ class BenchmarkRunner(
             format = model.format,
         )
         val loaded = runtime.load(handle, LoadConfig(contextLength = 1024))
+        onLoaded?.invoke(model.id)
 
         val startNanos = System.nanoTime()
         var firstTokenNanos = 0L

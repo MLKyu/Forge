@@ -29,6 +29,8 @@ data class SettingsUiState(
     val temperature: Float = 0.7f,
     val toolsEnabled: Boolean = false,
     val toolMaxIterations: Int = 4,
+    val autoCleanupEnabled: Boolean = false,
+    val autoCleanupBudgetGb: Int = 5,
     val deviceProfile: DeviceProfile,
     val storage: StorageSummary,
 )
@@ -45,6 +47,8 @@ class SettingsViewModel(
         settingsStore.defaultTemperature,
         settingsStore.toolsEnabled,
         settingsStore.toolMaxIterations,
+        settingsStore.autoCleanupEnabled,
+        settingsStore.autoCleanupBudgetGb,
         storage.installed,
     ) { values ->
         @Suppress("UNCHECKED_CAST")
@@ -53,7 +57,9 @@ class SettingsViewModel(
         val temp = values[2] as Float
         val tools = values[3] as Boolean
         val maxIter = values[4] as Int
-        val installed = values[5] as List<InstalledModel>
+        val autoCleanup = values[5] as Boolean
+        val budgetGb = values[6] as Int
+        val installed = values[7] as List<InstalledModel>
         SettingsUiState(
             hfToken = token.orEmpty(),
             tokenSet = !token.isNullOrEmpty(),
@@ -61,6 +67,8 @@ class SettingsViewModel(
             temperature = temp,
             toolsEnabled = tools,
             toolMaxIterations = maxIter,
+            autoCleanupEnabled = autoCleanup,
+            autoCleanupBudgetGb = budgetGb,
             deviceProfile = deviceProfile,
             storage = installed.toSummary(),
         )
@@ -119,6 +127,14 @@ class SettingsViewModel(
 
     fun onToolMaxIterationsChanged(value: Int) {
         viewModelScope.launch { settingsStore.setToolMaxIterations(value) }
+    }
+
+    fun onAutoCleanupEnabledChanged(enabled: Boolean) {
+        viewModelScope.launch { settingsStore.setAutoCleanupEnabled(enabled) }
+    }
+
+    fun onAutoCleanupBudgetChanged(gb: Int) {
+        viewModelScope.launch { settingsStore.setAutoCleanupBudgetGb(gb) }
     }
 
     private fun List<InstalledModel>.toSummary() = StorageSummary(

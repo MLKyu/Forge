@@ -127,6 +127,7 @@ class CompareViewModel(
                 ModelHandle(model.id, model.filePath, model.format),
                 LoadConfig(contextLength = model.contextLength.coerceAtMost(2048)),
             )
+            storage.markUsed(model.id)
             val template = loaded.chatTemplate
                 ?.let { ChatTemplate.fromChatTemplateString(it) }
                 ?: ChatTemplate.detect(model.id, model.fileName)
