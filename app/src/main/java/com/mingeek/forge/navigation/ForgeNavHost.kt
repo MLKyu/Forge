@@ -60,6 +60,7 @@ fun ForgeNavHost(
             storage = container.storage,
             registry = container.runtimeRegistry,
             settingsStore = container.settingsStore,
+            runHistory = container.agentRunHistory,
         )
         settingsScreen(
             settingsStore = container.settingsStore,

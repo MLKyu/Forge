@@ -22,6 +22,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -245,6 +248,13 @@ fun AgentsScreen(
                 }
                 StatusLine(state.status)
             }
+        }
+
+        if (state.pastRuns.isNotEmpty()) {
+            PastRunsSection(
+                pastRuns = state.pastRuns,
+                onDelete = viewModel::deletePastRun,
+            )
         }
 
         if (state.runs.isNotEmpty()) {
@@ -566,6 +576,74 @@ private fun ModeratorCard(
             }
         }
     }
+}
+
+@Composable
+private fun PastRunsSection(
+    pastRuns: List<PastRun>,
+    onDelete: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Recent runs (${pastRuns.size})",
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f),
+                )
+                androidx.compose.material3.TextButton(onClick = { expanded = !expanded }) {
+                    Text(if (expanded) "Hide" else "Show")
+                }
+            }
+            if (expanded) {
+                for (run in pastRuns) {
+                    PastRunCard(run = run, onDelete = { onDelete(run.id) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PastRunCard(run: PastRun, onDelete: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+    ) {
+        Column(Modifier.padding(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${run.mode.displayName} · ${formatRunTime(run.createdAtEpochSec)}",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                androidx.compose.material3.TextButton(onClick = onDelete) { Text("Delete") }
+            }
+            if (run.userPrompt.isNotBlank()) {
+                Text(
+                    "Prompt: ${run.userPrompt.take(120)}${if (run.userPrompt.length > 120) "…" else ""}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                run.finalOutput.take(240) + if (run.finalOutput.length > 240) "…" else "",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+    }
+}
+
+private fun formatRunTime(epochSec: Long): String {
+    val instant = java.time.Instant.ofEpochSecond(epochSec)
+    return java.time.format.DateTimeFormatter
+        .ofPattern("MM-dd HH:mm")
+        .withZone(java.time.ZoneId.systemDefault())
+        .format(instant)
 }
 
 @Composable

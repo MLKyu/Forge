@@ -97,6 +97,10 @@ dependencies {
     implementation(project(":data:discovery"))
     implementation(project(":data:download"))
     implementation(project(":data:storage"))
+    implementation(project(":data:agents"))
+
+    // Agent
+    implementation(project(":agent:memory"))
 
     // Runtime
     implementation(project(":runtime:core"))

@@ -6,6 +6,8 @@ import com.mingeek.forge.core.hardware.DeviceProfiler
 import com.mingeek.forge.data.catalog.huggingface.HfAuthInterceptor
 import com.mingeek.forge.data.catalog.huggingface.HuggingFaceCatalogSource
 import com.mingeek.forge.data.catalog.huggingface.HuggingFaceClient
+import com.mingeek.forge.agent.memory.MemoryStore
+import com.mingeek.forge.data.agents.FileMemoryStore
 import com.mingeek.forge.data.discovery.DiscoveryRepository
 import com.mingeek.forge.data.discovery.HuggingFaceLikedSource
 import com.mingeek.forge.data.discovery.HuggingFaceRecentSource
@@ -14,6 +16,7 @@ import com.mingeek.forge.data.download.ModelDownloader
 import com.mingeek.forge.data.storage.BenchmarkStore
 import com.mingeek.forge.data.storage.ModelStorage
 import com.mingeek.forge.data.storage.SettingsStore
+import java.io.File
 import com.mingeek.forge.runtime.llamacpp.LlamaCppRuntime
 import com.mingeek.forge.runtime.mediapipe.MediaPipeRuntime
 import com.mingeek.forge.runtime.registry.BenchmarkRunner
@@ -66,5 +69,9 @@ class ForgeContainer(appContext: Context) {
             HuggingFaceRecentSource(huggingFaceApi),
             HuggingFaceLikedSource(huggingFaceApi),
         ),
+    )
+
+    val agentRunHistory: MemoryStore = FileMemoryStore(
+        File(appContext.filesDir, "agents/run_history.json"),
     )
 }

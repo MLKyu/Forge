@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mingeek.forge.agent.core.Agent
 import com.mingeek.forge.agent.core.Tool
+import com.mingeek.forge.agent.memory.MemoryEntry
+import com.mingeek.forge.agent.memory.MemoryStore
 import com.mingeek.forge.agent.orchestrator.OrchestratorEvent
 import com.mingeek.forge.agent.tools.CalculatorTool
 import com.mingeek.forge.agent.tools.CurrentTimeTool
@@ -128,6 +130,14 @@ data class RouterConfig(
     ),
 )
 
+data class PastRun(
+    val id: String,
+    val mode: WorkflowMode,
+    val userPrompt: String,
+    val finalOutput: String,
+    val createdAtEpochSec: Long,
+)
+
 data class AgentsUiState(
     val installed: List<InstalledModel> = emptyList(),
     val mode: WorkflowMode = WorkflowMode.PIPELINE,
@@ -150,12 +160,14 @@ data class AgentsUiState(
     val userPrompt: String = "",
     val status: RunStatus = RunStatus.Idle,
     val runs: List<StepRun> = emptyList(),
+    val pastRuns: List<PastRun> = emptyList(),
 )
 
 class AgentsViewModel(
     private val storage: ModelStorage,
     private val registry: RuntimeRegistry,
     private val settingsStore: SettingsStore,
+    private val runHistory: MemoryStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AgentsUiState())
@@ -180,7 +192,31 @@ class AgentsViewModel(
         // don't immediately re-write what we just loaded.
         viewModelScope.launch {
             restorePersistedConfig()
+            refreshPastRuns()
             observePersistableChanges()
+        }
+    }
+
+    private suspend fun refreshPastRuns() {
+        val entries = runHistory.query(text = "", limit = 20, tags = setOf("agents-run"))
+        val mapped = entries.mapNotNull { entry ->
+            val modeName = entry.metadata["mode"] ?: return@mapNotNull null
+            val mode = runCatching { WorkflowMode.valueOf(modeName) }.getOrNull() ?: return@mapNotNull null
+            PastRun(
+                id = entry.id,
+                mode = mode,
+                userPrompt = entry.metadata["prompt"] ?: "",
+                finalOutput = entry.content,
+                createdAtEpochSec = entry.createdAtEpochSec,
+            )
+        }
+        _state.update { it.copy(pastRuns = mapped) }
+    }
+
+    fun deletePastRun(id: String) {
+        viewModelScope.launch {
+            runHistory.remove(id)
+            refreshPastRuns()
         }
     }
 
@@ -758,11 +794,30 @@ class AgentsViewModel(
                     if (it.stepId == event.stepId) it.copy(isComplete = true) else it
                 })
             }
-            is OrchestratorEvent.Completed -> _state.update { it.copy(status = RunStatus.Done) }
+            is OrchestratorEvent.Completed -> {
+                _state.update { it.copy(status = RunStatus.Done) }
+                viewModelScope.launch { recordRun(event.finalOutput) }
+            }
             is OrchestratorEvent.Failed -> _state.update {
                 it.copy(status = RunStatus.Failed(event.message))
             }
         }
+    }
+
+    private suspend fun recordRun(finalOutput: String) {
+        val snapshot = _state.value
+        val entry = MemoryEntry(
+            id = "agents-run:${System.currentTimeMillis()}",
+            content = finalOutput,
+            createdAtEpochSec = System.currentTimeMillis() / 1000,
+            tags = setOf("agents-run", "agents-run:${snapshot.mode.name.lowercase()}"),
+            metadata = mapOf(
+                "mode" to snapshot.mode.name,
+                "prompt" to snapshot.userPrompt,
+            ),
+        )
+        runHistory.put(entry)
+        refreshPastRuns()
     }
 
     private fun activeTools(): List<Tool> =
