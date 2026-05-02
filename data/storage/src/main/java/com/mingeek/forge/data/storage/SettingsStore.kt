@@ -72,6 +72,15 @@ class SettingsStore(context: Context) {
         .map { (it[AUTO_CLEANUP_BUDGET_GB] ?: 5).coerceIn(1, 50) }
         .stateIn(scope, SharingStarted.Eagerly, 5)
 
+    val discoveryNotificationsEnabled: StateFlow<Boolean> = ds.data
+        .map { it[DISCOVERY_NOTIFICATIONS_ENABLED] ?: false }
+        .stateIn(scope, SharingStarted.Eagerly, false)
+
+    /** Set of DiscoveredModel.card.id values we've already surfaced as a notification. */
+    val seenDiscoveryIds: StateFlow<Set<String>> = ds.data
+        .map { it[SEEN_DISCOVERY_IDS] ?: emptySet() }
+        .stateIn(scope, SharingStarted.Eagerly, emptySet())
+
     suspend fun setHfToken(token: String?) {
         ds.edit { prefs ->
             if (token.isNullOrBlank()) prefs.remove(HF_TOKEN) else prefs[HF_TOKEN] = token
@@ -132,6 +141,20 @@ class SettingsStore(context: Context) {
         ds.edit { it[AUTO_CLEANUP_BUDGET_GB] = value.coerceIn(1, 50) }
     }
 
+    suspend fun setDiscoveryNotificationsEnabled(enabled: Boolean) {
+        ds.edit { it[DISCOVERY_NOTIFICATIONS_ENABLED] = enabled }
+    }
+
+    /** Cap to avoid the set growing unboundedly — drops oldest seen ids. */
+    suspend fun markDiscoveryIdsSeen(ids: Set<String>, retain: Int = 500) {
+        ds.edit { prefs ->
+            val current = prefs[SEEN_DISCOVERY_IDS] ?: emptySet()
+            val merged = (current + ids).toList()
+            prefs[SEEN_DISCOVERY_IDS] = if (merged.size <= retain) merged.toSet()
+            else merged.takeLast(retain).toSet()
+        }
+    }
+
     private companion object {
         const val DEFAULT_TOOL_MAX_ITERATIONS = 4
         val HF_TOKEN: Preferences.Key<String> = stringPreferencesKey("hf_token")
@@ -146,5 +169,9 @@ class SettingsStore(context: Context) {
         val PINNED_MODEL_IDS: Preferences.Key<Set<String>> = stringSetPreferencesKey("pinned_model_ids")
         val AUTO_CLEANUP_ENABLED: Preferences.Key<Boolean> = booleanPreferencesKey("auto_cleanup_enabled")
         val AUTO_CLEANUP_BUDGET_GB: Preferences.Key<Int> = intPreferencesKey("auto_cleanup_budget_gb")
+        val DISCOVERY_NOTIFICATIONS_ENABLED: Preferences.Key<Boolean> =
+            booleanPreferencesKey("discovery_notifications_enabled")
+        val SEEN_DISCOVERY_IDS: Preferences.Key<Set<String>> =
+            stringSetPreferencesKey("seen_discovery_ids")
     }
 }

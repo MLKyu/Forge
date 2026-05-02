@@ -8,6 +8,7 @@ import com.mingeek.forge.data.catalog.huggingface.HuggingFaceCatalogSource
 import com.mingeek.forge.data.catalog.huggingface.HuggingFaceClient
 import com.mingeek.forge.agent.memory.MemoryStore
 import com.mingeek.forge.data.agents.FileMemoryStore
+import com.mingeek.forge.data.discovery.DiscoveryNotifier
 import com.mingeek.forge.data.discovery.DiscoveryRepository
 import com.mingeek.forge.data.discovery.HuggingFaceBlogSource
 import com.mingeek.forge.data.discovery.HuggingFaceLikedSource
@@ -82,4 +83,6 @@ class ForgeContainer(appContext: Context) {
     val chatHistory: MemoryStore = FileMemoryStore(
         File(appContext.filesDir, "chat/history.json"),
     )
+
+    val discoveryNotifier = DiscoveryNotifier(appContext)
 }

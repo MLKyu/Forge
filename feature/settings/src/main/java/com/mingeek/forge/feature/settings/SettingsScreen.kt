@@ -150,6 +150,21 @@ fun SettingsScreen(
                     steps = 48,
                 )
             }
+            HorizontalDivider()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Discovery notifications", fontWeight = FontWeight.Medium)
+                    Text(
+                        "Background polls every ~6 hours and notifies you when new models surface from Trending / Recent / Liked / HF Blog / r/LocalLLaMA. Requires the Notifications permission on Android 13+.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = state.discoveryNotificationsEnabled,
+                    onCheckedChange = viewModel::onDiscoveryNotificationsChanged,
+                )
+            }
         }
 
         SectionCard(title = "Device") {
