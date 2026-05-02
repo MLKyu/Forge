@@ -16,15 +16,26 @@ import com.mingeek.forge.runtime.core.SessionId
 import com.mingeek.forge.runtime.core.Token
 import com.mingeek.forge.agent.core.Tool
 import com.mingeek.forge.agent.core.ToolCallProtocol
+import com.mingeek.forge.agent.memory.MemoryEntry
+import com.mingeek.forge.agent.memory.MemoryStore
 import com.mingeek.forge.agent.tools.CalculatorTool
 import com.mingeek.forge.agent.tools.CurrentTimeTool
 import com.mingeek.forge.agent.tools.WordCountTool
 import com.mingeek.forge.runtime.registry.RuntimeRegistry
+import com.squareup.moshi.JsonAdapter
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -72,17 +83,29 @@ data class ChatMessage(
     enum class Role { USER, ASSISTANT, SYSTEM }
 }
 
+data class PastConversation(
+    val id: String,
+    val title: String,
+    val messageCount: Int,
+    val updatedAtEpochSec: Long,
+    val lastModelId: String?,
+)
+
 data class ChatUiState(
     val sessionState: SessionState = SessionState.Idle,
     val messages: List<ChatMessage> = emptyList(),
     val isGenerating: Boolean = false,
     val draft: String = "",
+    /** Stable id for auto-save. Rotates on newConversation(). */
+    val conversationId: String = UUID.randomUUID().toString(),
+    val pastConversations: List<PastConversation> = emptyList(),
 )
 
 class ChatViewModel(
     private val storage: ModelStorage,
     private val registry: RuntimeRegistry,
     private val settingsStore: SettingsStore,
+    private val chatHistory: MemoryStore,
 ) : ViewModel() {
 
     val installed: StateFlow<List<InstalledModel>> = storage.installed
@@ -91,6 +114,123 @@ class ChatViewModel(
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
 
     private var generationJob: Job? = null
+
+    private val moshi: Moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+    private val messagesAdapter: JsonAdapter<List<ChatMessage>> = moshi.adapter(
+        Types.newParameterizedType(List::class.java, ChatMessage::class.java),
+    )
+
+    @OptIn(FlowPreview::class)
+    private fun startAutoSave() {
+        viewModelScope.launch {
+            _state
+                .map { Triple(it.conversationId, it.messages, (it.sessionState as? SessionState.Ready)?.model?.id) }
+                .distinctUntilChanged()
+                .drop(1)
+                .debounce(500)
+                .collect { (id, msgs, modelId) ->
+                    if (msgs.isEmpty()) return@collect
+                    persistConversation(id, msgs, modelId)
+                }
+        }
+    }
+
+    init {
+        startAutoSave()
+        viewModelScope.launch { refreshPastConversations() }
+    }
+
+    private suspend fun persistConversation(id: String, msgs: List<ChatMessage>, modelId: String?) {
+        val firstUserMsg = msgs.firstOrNull { it.role == ChatMessage.Role.USER }?.content
+        val title = firstUserMsg?.take(60)?.ifBlank { null } ?: "Untitled chat"
+        chatHistory.put(
+            MemoryEntry(
+                id = "chat:$id",
+                content = messagesAdapter.toJson(msgs),
+                createdAtEpochSec = System.currentTimeMillis() / 1000,
+                tags = setOf("chat-conversation"),
+                metadata = buildMap {
+                    put("title", title)
+                    put("count", msgs.size.toString())
+                    if (modelId != null) put("modelId", modelId)
+                },
+            ),
+        )
+        refreshPastConversations()
+    }
+
+    private suspend fun refreshPastConversations() {
+        val entries = chatHistory.query(text = "", limit = 50, tags = setOf("chat-conversation"))
+        val mapped = entries.map { entry ->
+            PastConversation(
+                id = entry.id.removePrefix("chat:"),
+                title = entry.metadata["title"] ?: "Untitled chat",
+                messageCount = entry.metadata["count"]?.toIntOrNull() ?: 0,
+                updatedAtEpochSec = entry.createdAtEpochSec,
+                lastModelId = entry.metadata["modelId"],
+            )
+        }
+        _state.update { it.copy(pastConversations = mapped) }
+    }
+
+    /** Save current conversation, then start a fresh one keeping the loaded model. */
+    fun newConversation() {
+        viewModelScope.launch {
+            val s = _state.value
+            if (s.messages.isNotEmpty()) {
+                persistConversation(
+                    s.conversationId,
+                    s.messages,
+                    (s.sessionState as? SessionState.Ready)?.model?.id,
+                )
+            }
+            generationJob?.cancel()
+            _state.update {
+                it.copy(
+                    messages = emptyList(),
+                    conversationId = UUID.randomUUID().toString(),
+                    isGenerating = false,
+                )
+            }
+        }
+    }
+
+    fun resumeConversation(id: String) {
+        viewModelScope.launch {
+            // Persist whatever's open before switching away.
+            val current = _state.value
+            if (current.messages.isNotEmpty()) {
+                persistConversation(
+                    current.conversationId,
+                    current.messages,
+                    (current.sessionState as? SessionState.Ready)?.model?.id,
+                )
+            }
+            val entry = chatHistory.get("chat:$id") ?: return@launch
+            val msgs = runCatching { messagesAdapter.fromJson(entry.content) }.getOrNull().orEmpty()
+            generationJob?.cancel()
+            _state.update {
+                it.copy(
+                    messages = msgs,
+                    conversationId = id,
+                    isGenerating = false,
+                )
+            }
+        }
+    }
+
+    fun deleteConversation(id: String) {
+        viewModelScope.launch {
+            chatHistory.remove("chat:$id")
+            refreshPastConversations()
+            // If we deleted the active conversation, rotate to a fresh id.
+            if (_state.value.conversationId == id) {
+                _state.update {
+                    it.copy(messages = emptyList(), conversationId = UUID.randomUUID().toString())
+                }
+            }
+        }
+    }
 
     fun onDraftChanged(text: String) {
         _state.update { it.copy(draft = text) }

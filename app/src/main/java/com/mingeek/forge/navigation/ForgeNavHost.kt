@@ -50,6 +50,7 @@ fun ForgeNavHost(
             storage = container.storage,
             registry = container.runtimeRegistry,
             settingsStore = container.settingsStore,
+            chatHistory = container.chatHistory,
         )
         compareScreen(
             storage = container.storage,
