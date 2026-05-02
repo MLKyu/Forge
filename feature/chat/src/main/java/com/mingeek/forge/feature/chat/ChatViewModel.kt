@@ -118,6 +118,7 @@ class ChatViewModel(
                 val template = loaded.chatTemplate
                     ?.let { ChatTemplate.fromChatTemplateString(it) }
                     ?: ChatTemplate.detect(model.id, model.fileName)
+                storage.markUsed(model.id)
                 _state.update {
                     it.copy(sessionState = SessionState.Ready(loaded.sessionId, model, template))
                 }

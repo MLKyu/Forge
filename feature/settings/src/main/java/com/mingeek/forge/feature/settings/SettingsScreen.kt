@@ -123,6 +123,33 @@ fun SettingsScreen(
                     steps = 8,
                 )
             }
+            HorizontalDivider()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Auto-cleanup over budget", fontWeight = FontWeight.Medium)
+                    Text(
+                        "When total Library size exceeds the budget, evict non-pinned models oldest-used first.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = state.autoCleanupEnabled,
+                    onCheckedChange = viewModel::onAutoCleanupEnabledChanged,
+                )
+            }
+            if (state.autoCleanupEnabled) {
+                Text(
+                    "Budget: ${state.autoCleanupBudgetGb} GB",
+                    fontWeight = FontWeight.Medium,
+                )
+                Slider(
+                    value = state.autoCleanupBudgetGb.toFloat(),
+                    onValueChange = { viewModel.onAutoCleanupBudgetChanged(it.toInt()) },
+                    valueRange = 1f..50f,
+                    steps = 48,
+                )
+            }
         }
 
         SectionCard(title = "Device") {

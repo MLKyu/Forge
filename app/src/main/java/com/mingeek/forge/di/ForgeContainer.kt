@@ -55,7 +55,10 @@ class ForgeContainer(appContext: Context) {
         ),
     )
 
-    val benchmarkRunner = BenchmarkRunner(runtimeRegistry)
+    val benchmarkRunner = BenchmarkRunner(
+        registry = runtimeRegistry,
+        onLoaded = { storage.markUsed(it) },
+    )
 
     val discoveryRepository = DiscoveryRepository(
         sources = listOf(

@@ -20,6 +20,12 @@ import kotlinx.coroutines.sync.withLock
  */
 class SharedSessionRegistry(
     private val registry: RuntimeRegistry,
+    /**
+     * Called once per modelId after the very first successful load. Used by
+     * the LRU cleanup pass (callers wire it to ModelStorage::markUsed). Null
+     * for tests / contexts where usage tracking isn't relevant.
+     */
+    private val onLoaded: (suspend (String) -> Unit)? = null,
 ) {
 
     private data class Entry(val runtime: InferenceRuntime, val loaded: LoadedModel)
@@ -48,6 +54,7 @@ class SharedSessionRegistry(
             val loaded = runtime.load(handle, config)
             val entry = Entry(runtime, loaded)
             sessions[model.id] = entry
+            onLoaded?.invoke(model.id)
             runtime to loaded
         }
 

@@ -68,6 +68,57 @@ class ModelStorage(private val context: Context) {
         }
     }
 
+    /** Stamp [id] as just-loaded so the LRU pass keeps it. No-op for unknown ids. */
+    suspend fun markUsed(id: String, epochSec: Long = System.currentTimeMillis() / 1000) = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            val current = _installed.value
+            val target = current.firstOrNull { it.id == id } ?: return@withContext
+            // Skip the disk write if the timestamp would advance by less than
+            // a minute — typical chat sessions hit markUsed many times per
+            // turn and we don't need second-level precision here.
+            val previous = target.lastUsedEpochSec ?: 0
+            if (epochSec - previous < 60) return@withContext
+            val updated = current.map { if (it.id == id) it.copy(lastUsedEpochSec = epochSec) else it }
+            _installed.value = updated
+            persist(updated)
+        }
+    }
+
+    /**
+     * Evict non-pinned models, oldest-used first, until total size on disk is
+     * under [budgetBytes]. Returns the ids that were deleted. No-op when total
+     * is already under budget or every remaining model is pinned.
+     */
+    suspend fun cleanupIfOverBudget(
+        budgetBytes: Long,
+        pinnedIds: Set<String>,
+    ): List<String> = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            val current = _installed.value
+            var totalSize = current.sumOf { it.sizeBytes }
+            if (totalSize <= budgetBytes) return@withContext emptyList()
+            val candidates = current
+                .filterNot { it.id in pinnedIds }
+                .sortedBy { it.effectiveLastUsedEpochSec() }
+            val deleted = mutableListOf<String>()
+            for (candidate in candidates) {
+                if (totalSize <= budgetBytes) break
+                val file = File(candidate.filePath)
+                if (file.exists()) file.delete()
+                val parent = file.parentFile
+                if (parent != null && parent.exists() && parent.list().isNullOrEmpty()) parent.delete()
+                totalSize -= candidate.sizeBytes
+                deleted += candidate.id
+            }
+            if (deleted.isNotEmpty()) {
+                val updated = current.filterNot { it.id in deleted }
+                _installed.value = updated
+                persist(updated)
+            }
+            deleted
+        }
+    }
+
     /**
      * Copy the file referenced by [uri] into the models dir and return its [File] location
      * along with a display filename. Caller is responsible for [register]ing an [InstalledModel].

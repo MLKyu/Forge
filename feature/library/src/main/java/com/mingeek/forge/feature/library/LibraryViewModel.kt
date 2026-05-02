@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -98,6 +99,45 @@ class LibraryViewModel(
     fun togglePin(model: InstalledModel) {
         viewModelScope.launch { settingsStore.togglePinnedModel(model.id) }
     }
+
+    private val _lastCleanupReport = MutableStateFlow<String?>(null)
+    val lastCleanupReport: StateFlow<String?> = _lastCleanupReport.asStateFlow()
+
+    fun clearCleanupReport() {
+        _lastCleanupReport.value = null
+    }
+
+    init {
+        // Auto-cleanup: when enabled, observe installed/pinned/budget and evict
+        // oldest non-pinned models until total disk usage fits the budget.
+        viewModelScope.launch {
+            combine(
+                settingsStore.autoCleanupEnabled,
+                settingsStore.autoCleanupBudgetGb,
+                storage.installed,
+                settingsStore.pinnedModelIds,
+            ) { enabled, gb, models, pinned ->
+                CleanupTrigger(enabled, gb, models.sumOf { it.sizeBytes }, pinned)
+            }.distinctUntilChanged().collect { trigger ->
+                if (!trigger.enabled) return@collect
+                val budgetBytes = trigger.budgetGb.toLong() * 1024L * 1024L * 1024L
+                if (trigger.currentBytes <= budgetBytes) return@collect
+                val deleted = storage.cleanupIfOverBudget(budgetBytes, trigger.pinned)
+                deleted.forEach { benchmarkStore.remove(it) }
+                if (deleted.isNotEmpty()) {
+                    _lastCleanupReport.value =
+                        "Auto-cleanup removed ${deleted.size} model(s) to fit ${trigger.budgetGb} GB budget."
+                }
+            }
+        }
+    }
+
+    private data class CleanupTrigger(
+        val enabled: Boolean,
+        val budgetGb: Int,
+        val currentBytes: Long,
+        val pinned: Set<String>,
+    )
 
     fun delete(model: InstalledModel) {
         viewModelScope.launch {
