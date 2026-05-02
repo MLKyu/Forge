@@ -8,6 +8,7 @@ import com.mingeek.forge.data.storage.BenchmarkRecord
 import com.mingeek.forge.data.storage.BenchmarkStore
 import com.mingeek.forge.data.storage.InstalledModel
 import com.mingeek.forge.data.storage.ModelStorage
+import com.mingeek.forge.data.storage.SettingsStore
 import com.mingeek.forge.domain.DeviceFitScore
 import com.mingeek.forge.domain.ModelFormat
 import com.mingeek.forge.domain.Quant
@@ -40,6 +41,7 @@ data class LibraryRow(
     val fit: DeviceFitScore,
     val benchmark: BenchmarkRecord?,
     val benchmarkState: BenchmarkState,
+    val pinned: Boolean,
 )
 
 class LibraryViewModel(
@@ -47,6 +49,7 @@ class LibraryViewModel(
     private val benchmarkStore: BenchmarkStore,
     private val benchmarkRunner: BenchmarkRunner,
     private val fitScorer: DeviceFitScorer,
+    private val settingsStore: SettingsStore,
 ) : ViewModel() {
 
     private val _benchmarkStates = MutableStateFlow<Map<String, BenchmarkState>>(emptyMap())
@@ -70,7 +73,8 @@ class LibraryViewModel(
         storage.installed,
         benchmarkStore.records,
         _benchmarkStates,
-    ) { models, benchmarks, runStates ->
+        settingsStore.pinnedModelIds,
+    ) { models, benchmarks, runStates, pinned ->
         models.map { model ->
             val bench = benchmarks[model.id]
             val runtime = runCatching { RuntimeId.valueOf(model.recommendedRuntime) }
@@ -86,14 +90,20 @@ class LibraryViewModel(
                 ),
                 benchmark = bench,
                 benchmarkState = runStates[model.id] ?: BenchmarkState.Idle,
+                pinned = model.id in pinned,
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun togglePin(model: InstalledModel) {
+        viewModelScope.launch { settingsStore.togglePinnedModel(model.id) }
+    }
 
     fun delete(model: InstalledModel) {
         viewModelScope.launch {
             storage.delete(model.id)
             benchmarkStore.remove(model.id)
+            settingsStore.unpinModel(model.id)
         }
     }
 

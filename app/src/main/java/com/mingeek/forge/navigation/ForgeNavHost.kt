@@ -44,6 +44,7 @@ fun ForgeNavHost(
             benchmarkStore = container.benchmarkStore,
             benchmarkRunner = container.benchmarkRunner,
             fitScorer = container.deviceFitScorer,
+            settingsStore = container.settingsStore,
         )
         chatScreen(
             storage = container.storage,

@@ -61,12 +61,15 @@ fun LibraryScreen(
                 row.model.fileName.contains(query, ignoreCase = true) ||
                 row.model.quantization.name.contains(query, ignoreCase = true)
         }
-        when (sort) {
+        val secondary = when (sort) {
             LibrarySort.NAME -> q.sortedBy { it.model.displayName.lowercase() }
             LibrarySort.SIZE_DESC -> q.sortedByDescending { it.model.sizeBytes }
             LibrarySort.INSTALLED_DESC -> q.sortedByDescending { it.model.installedAtEpochSec }
             LibrarySort.SPEED_DESC -> q.sortedByDescending { it.benchmark?.tokensPerSecond ?: -1f }
         }
+        // Pinned rows always float to the top; within each group the chosen
+        // sort applies. Stable sort preserves the secondary order.
+        secondary.sortedByDescending { it.pinned }
     }
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
@@ -141,6 +144,7 @@ fun LibraryScreen(
                             row = row,
                             onDelete = { pendingDelete = row.model },
                             onBenchmark = { viewModel.runBenchmark(row.model) },
+                            onTogglePin = { viewModel.togglePin(row.model) },
                         )
                     }
                 }
@@ -173,13 +177,15 @@ private fun LibraryItemCard(
     row: LibraryRow,
     onDelete: () -> Unit,
     onBenchmark: () -> Unit,
+    onTogglePin: () -> Unit,
 ) {
     val model = row.model
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(model.displayName, fontWeight = FontWeight.Medium)
+                    val title = if (row.pinned) "📌 ${model.displayName}" else model.displayName
+                    Text(title, fontWeight = FontWeight.Medium)
                     Text(
                         "${model.fileName} · ${model.quantization.name} · ${formatSize(model.sizeBytes)}",
                         style = MaterialTheme.typography.bodySmall,
@@ -190,6 +196,9 @@ private fun LibraryItemCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+                TextButton(onClick = onTogglePin) {
+                    Text(if (row.pinned) "Unpin" else "Pin")
                 }
                 TextButton(onClick = onDelete) { Text("Delete") }
             }
