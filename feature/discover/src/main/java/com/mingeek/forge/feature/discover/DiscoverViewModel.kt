@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.mingeek.forge.agent.core.Agent
 import com.mingeek.forge.agent.curator.LlmCurator
 import com.mingeek.forge.agent.curator.ModelEvaluator
+import com.mingeek.forge.data.discovery.Collection
+import com.mingeek.forge.data.discovery.CollectionRepository
 import com.mingeek.forge.data.discovery.DiscoveryRepository
 import com.mingeek.forge.data.storage.InstalledModel
 import com.mingeek.forge.data.storage.ModelStorage
@@ -20,6 +22,7 @@ import kotlinx.coroutines.launch
 data class DiscoverUiState(
     val isRefreshing: Boolean = false,
     val feeds: List<DiscoveryRepository.Feed> = emptyList(),
+    val collections: List<Collection> = emptyList(),
     val error: String? = null,
     val isCurating: Boolean = false,
     val curatorModelId: String? = null,
@@ -38,6 +41,7 @@ typealias CuratorAgentFactory = (InstalledModel) -> Agent
 
 class DiscoverViewModel(
     private val repository: DiscoveryRepository,
+    private val collectionRepository: CollectionRepository,
     storage: ModelStorage,
     private val curatorAgentFactory: CuratorAgentFactory,
 ) : ViewModel() {
@@ -55,7 +59,10 @@ class DiscoverViewModel(
             _state.update { it.copy(isRefreshing = true, error = null) }
             try {
                 val feeds = repository.fetchAll()
-                _state.update { it.copy(isRefreshing = false, feeds = feeds) }
+                val collections = runCatching { collectionRepository.fetchAll() }.getOrDefault(emptyList())
+                _state.update {
+                    it.copy(isRefreshing = false, feeds = feeds, collections = collections)
+                }
             } catch (t: Throwable) {
                 _state.update { it.copy(isRefreshing = false, error = t.message ?: "fetch failed") }
             }

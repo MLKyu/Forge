@@ -29,6 +29,7 @@ fun ForgeNavHost(
     ) {
         discoverScreen(
             repository = container.discoveryRepository,
+            collectionRepository = container.collectionRepository,
             storage = container.storage,
             curatorAgentFactory = container.curatorAgentFactory,
             onOpenInCatalog = { modelId ->

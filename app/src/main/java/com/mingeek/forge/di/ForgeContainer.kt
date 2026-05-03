@@ -10,8 +10,10 @@ import com.mingeek.forge.agent.memory.MemoryStore
 import com.mingeek.forge.data.agents.FileMemoryStore
 import com.mingeek.forge.feature.agents.LlmAgent
 import com.mingeek.forge.feature.discover.CuratorAgentFactory
+import com.mingeek.forge.data.discovery.CollectionRepository
 import com.mingeek.forge.data.discovery.DiscoveryNotifier
 import com.mingeek.forge.data.discovery.DiscoveryRepository
+import com.mingeek.forge.data.discovery.StaticCollectionsSource
 import com.mingeek.forge.data.discovery.HuggingFaceBlogSource
 import com.mingeek.forge.data.discovery.HuggingFaceLikedSource
 import com.mingeek.forge.data.discovery.HuggingFaceRecentSource
@@ -85,6 +87,10 @@ class ForgeContainer(appContext: Context) {
             HuggingFaceBlogSource(okHttpClient),
             RedditLocalLlamaSource(okHttpClient),
         ),
+    )
+
+    val collectionRepository = CollectionRepository(
+        sources = listOf(StaticCollectionsSource()),
     )
 
     val agentRunHistory: MemoryStore = FileMemoryStore(
