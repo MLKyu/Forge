@@ -31,6 +31,7 @@ data class SettingsUiState(
     val toolMaxIterations: Int = 4,
     val autoCleanupEnabled: Boolean = false,
     val autoCleanupBudgetGb: Int = 5,
+    val discoveryNotificationsEnabled: Boolean = false,
     val deviceProfile: DeviceProfile,
     val storage: StorageSummary,
 )
@@ -49,6 +50,7 @@ class SettingsViewModel(
         settingsStore.toolMaxIterations,
         settingsStore.autoCleanupEnabled,
         settingsStore.autoCleanupBudgetGb,
+        settingsStore.discoveryNotificationsEnabled,
         storage.installed,
     ) { values ->
         @Suppress("UNCHECKED_CAST")
@@ -59,7 +61,8 @@ class SettingsViewModel(
         val maxIter = values[4] as Int
         val autoCleanup = values[5] as Boolean
         val budgetGb = values[6] as Int
-        val installed = values[7] as List<InstalledModel>
+        val notifyEnabled = values[7] as Boolean
+        val installed = values[8] as List<InstalledModel>
         SettingsUiState(
             hfToken = token.orEmpty(),
             tokenSet = !token.isNullOrEmpty(),
@@ -69,6 +72,7 @@ class SettingsViewModel(
             toolMaxIterations = maxIter,
             autoCleanupEnabled = autoCleanup,
             autoCleanupBudgetGb = budgetGb,
+            discoveryNotificationsEnabled = notifyEnabled,
             deviceProfile = deviceProfile,
             storage = installed.toSummary(),
         )
@@ -135,6 +139,10 @@ class SettingsViewModel(
 
     fun onAutoCleanupBudgetChanged(gb: Int) {
         viewModelScope.launch { settingsStore.setAutoCleanupBudgetGb(gb) }
+    }
+
+    fun onDiscoveryNotificationsChanged(enabled: Boolean) {
+        viewModelScope.launch { settingsStore.setDiscoveryNotificationsEnabled(enabled) }
     }
 
     private fun List<InstalledModel>.toSummary() = StorageSummary(
