@@ -17,11 +17,20 @@ import kotlinx.coroutines.flow.flow
  * MLC LLM runtime stub. PLANNING §11 Phase 5.
  *
  * Surfaces the runtime id + format mapping so the registry can pick it
- * for MLC-compiled models, but load() throws until the MLC LLM Android
- * library and TVM compiled artifacts are wired in. Vulkan GPU
- * acceleration is the headline reason for adding this runtime — the
- * device fit scorer can already attribute YELLOW/GREEN tiers based on
- * Vulkan support once load() returns real numbers.
+ * for MLC-compiled models, but load() throws because MLC LLM doesn't
+ * publish a Maven artifact — the canonical distribution is `mlc4j` from
+ * the mlc-ai/mlc-llm repository, built from source against TVM. Wiring
+ * this runtime requires:
+ *
+ * 1. Cloning mlc-llm + TVM + emsdk and building mlc4j locally
+ * 2. Running TVM model compilation per (model, target architecture)
+ *    to produce the compiled binary the runtime expects
+ * 3. Hosting the resulting AAR somewhere consumable
+ *
+ * That toolchain work is intentionally out of scope here — it's a
+ * developer-environment setup task, not "drop in a Maven dep". When
+ * mlc4j ships to Maven Central or JitPack the stub becomes a 50-line
+ * implementation mirroring [ExecuTorchRuntime].
  */
 class MlcLlmRuntime : InferenceRuntime {
 
@@ -39,7 +48,9 @@ class MlcLlmRuntime : InferenceRuntime {
 
     override suspend fun load(model: ModelHandle, config: LoadConfig): LoadedModel {
         throw NotImplementedError(
-            "MLC LLM runtime not yet integrated. Add the mlc4j Android library and a TVM model loader to enable.",
+            "MLC LLM runtime requires mlc4j built from source — see class-level " +
+                "documentation. Stubbed so RuntimeRegistry can advertise the runtime " +
+                "without pulling in the build toolchain.",
         )
     }
 
