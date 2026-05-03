@@ -5,6 +5,7 @@ import com.mingeek.forge.domain.DeviceFitScore
 import com.mingeek.forge.domain.DiscoveredModel
 import com.mingeek.forge.domain.DiscoverySignals
 import com.mingeek.forge.domain.License
+import com.mingeek.forge.domain.Licenses
 import com.mingeek.forge.domain.ModelCard
 import com.mingeek.forge.domain.ModelFamily
 import com.mingeek.forge.domain.ModelFormat
@@ -63,11 +64,7 @@ class RedditLocalLlamaSource(
                 format = ModelFormat.GGUF,
                 contextLength = 0,
                 capabilities = setOf(Capability.CHAT),
-                license = License(
-                    spdxId = "unknown",
-                    displayName = "unknown",
-                    commercialUseAllowed = false,
-                ),
+                license = Licenses.fromSpdx(null),
                 source = source,
                 recommendedRuntimes = listOf(RuntimeId.LLAMA_CPP),
                 benchmarks = null,
