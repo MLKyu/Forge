@@ -107,6 +107,8 @@ dependencies {
     implementation(project(":runtime:registry"))
     implementation(project(":runtime:llamacpp"))
     implementation(project(":runtime:mediapipe"))
+    implementation(project(":runtime:executorch"))
+    implementation(project(":runtime:mlc"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

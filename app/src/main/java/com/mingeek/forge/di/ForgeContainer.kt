@@ -20,8 +20,10 @@ import com.mingeek.forge.data.storage.BenchmarkStore
 import com.mingeek.forge.data.storage.ModelStorage
 import com.mingeek.forge.data.storage.SettingsStore
 import java.io.File
+import com.mingeek.forge.runtime.executorch.ExecuTorchRuntime
 import com.mingeek.forge.runtime.llamacpp.LlamaCppRuntime
 import com.mingeek.forge.runtime.mediapipe.MediaPipeRuntime
+import com.mingeek.forge.runtime.mlc.MlcLlmRuntime
 import com.mingeek.forge.runtime.registry.BenchmarkRunner
 import com.mingeek.forge.runtime.registry.RuntimeRegistry
 import okhttp3.OkHttpClient
@@ -58,6 +60,13 @@ class ForgeContainer(appContext: Context) {
         runtimes = listOf(
             LlamaCppRuntime(),
             MediaPipeRuntime(appContext),
+            // ExecuTorch + MLC stubs — registered so the registry can route
+            // .pte / MLC formats to them; load() throws until native bindings
+            // are wired in (PLANNING §11 Phase 2/4/5).
+            ExecuTorchRuntime(ExecuTorchRuntime.Variant.QNN),
+            ExecuTorchRuntime(ExecuTorchRuntime.Variant.EXYNOS),
+            ExecuTorchRuntime(ExecuTorchRuntime.Variant.CPU),
+            MlcLlmRuntime(),
         ),
     )
 
