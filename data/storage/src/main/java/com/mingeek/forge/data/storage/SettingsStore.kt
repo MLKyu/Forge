@@ -59,6 +59,14 @@ class SettingsStore(context: Context) {
         .map { it[AGENTS_DEBATE_JSON] }
         .stateIn(scope, SharingStarted.Eagerly, null)
 
+    val agentsPlanExecuteJson: StateFlow<String?> = ds.data
+        .map { it[AGENTS_PLAN_EXECUTE_JSON] }
+        .stateIn(scope, SharingStarted.Eagerly, null)
+
+    val agentsPresetsJson: StateFlow<String?> = ds.data
+        .map { it[AGENTS_PRESETS_JSON] }
+        .stateIn(scope, SharingStarted.Eagerly, null)
+
     val pinnedModelIds: StateFlow<Set<String>> = ds.data
         .map { it[PINNED_MODEL_IDS] ?: emptySet() }
         .stateIn(scope, SharingStarted.Eagerly, emptySet())
@@ -125,6 +133,14 @@ class SettingsStore(context: Context) {
         ds.edit { if (json == null) it.remove(AGENTS_DEBATE_JSON) else it[AGENTS_DEBATE_JSON] = json }
     }
 
+    suspend fun setAgentsPlanExecuteJson(json: String?) {
+        ds.edit { if (json == null) it.remove(AGENTS_PLAN_EXECUTE_JSON) else it[AGENTS_PLAN_EXECUTE_JSON] = json }
+    }
+
+    suspend fun setAgentsPresetsJson(json: String?) {
+        ds.edit { if (json == null) it.remove(AGENTS_PRESETS_JSON) else it[AGENTS_PRESETS_JSON] = json }
+    }
+
     suspend fun togglePinnedModel(id: String) {
         ds.edit { prefs ->
             val current = prefs[PINNED_MODEL_IDS] ?: emptySet()
@@ -176,6 +192,8 @@ class SettingsStore(context: Context) {
         val AGENTS_PIPELINE_JSON: Preferences.Key<String> = stringPreferencesKey("agents_pipeline_json")
         val AGENTS_ROUTER_JSON: Preferences.Key<String> = stringPreferencesKey("agents_router_json")
         val AGENTS_DEBATE_JSON: Preferences.Key<String> = stringPreferencesKey("agents_debate_json")
+        val AGENTS_PLAN_EXECUTE_JSON: Preferences.Key<String> = stringPreferencesKey("agents_plan_execute_json")
+        val AGENTS_PRESETS_JSON: Preferences.Key<String> = stringPreferencesKey("agents_presets_json")
         val PINNED_MODEL_IDS: Preferences.Key<Set<String>> = stringSetPreferencesKey("pinned_model_ids")
         val AUTO_CLEANUP_ENABLED: Preferences.Key<Boolean> = booleanPreferencesKey("auto_cleanup_enabled")
         val AUTO_CLEANUP_BUDGET_GB: Preferences.Key<Int> = intPreferencesKey("auto_cleanup_budget_gb")

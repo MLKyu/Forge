@@ -79,7 +79,27 @@ enum class WorkflowMode(val displayName: String) {
     PIPELINE("Pipeline"),
     ROUTER("Router"),
     DEBATE("Debate"),
+    PLAN_EXECUTE("Plan-Execute"),
 }
+
+data class PlanExecuteConfig(
+    val plannerAgentId: String = "planner",
+    val plannerModelId: String? = null,
+    val plannerSystemPrompt: String =
+        "You are a careful planner. Outline a step-by-step plan that solves the user's request.",
+    val plannerMaxTokens: Int = 384,
+    val executorAgentId: String = "executor",
+    val executorModelId: String? = null,
+    val executorSystemPrompt: String =
+        "You are a polished writer. Carry out the supplied plan and produce the answer.",
+    val executorMaxTokens: Int = 512,
+    val criticEnabled: Boolean = false,
+    val criticAgentId: String = "critic",
+    val criticModelId: String? = null,
+    val criticSystemPrompt: String =
+        "You are a sharp critic. Identify weaknesses in the draft and produce an improved final answer.",
+    val criticMaxTokens: Int = 512,
+)
 
 data class ParticipantConfig(
     val agentId: String,
@@ -130,6 +150,27 @@ data class RouterConfig(
     ),
 )
 
+/**
+ * A named snapshot of every workflow mode's config. Stored as a JSON list in
+ * SettingsStore so the user can shuttle between named setups ("RAG-style
+ * pipeline", "code router", "research debate") without re-entering prompts.
+ *
+ * Only the active mode's config is *required* to be meaningful — the others
+ * carry the values that were live when the preset was saved, so loading a
+ * preset that targeted PIPELINE still leaves your last DEBATE setup intact
+ * if you switch modes after applying it.
+ */
+data class WorkflowPreset(
+    val id: String,
+    val name: String,
+    val mode: WorkflowMode,
+    val steps: List<StepConfig>,
+    val router: RouterConfig,
+    val debate: DebateConfig,
+    val planExecute: PlanExecuteConfig,
+    val createdAtEpochSec: Long,
+)
+
 data class PastRun(
     val id: String,
     val mode: WorkflowMode,
@@ -157,6 +198,8 @@ data class AgentsUiState(
     ),
     val router: RouterConfig = RouterConfig(),
     val debate: DebateConfig = DebateConfig(),
+    val planExecute: PlanExecuteConfig = PlanExecuteConfig(),
+    val presets: List<WorkflowPreset> = emptyList(),
     val userPrompt: String = "",
     val status: RunStatus = RunStatus.Idle,
     val runs: List<StepRun> = emptyList(),
@@ -181,6 +224,11 @@ class AgentsViewModel(
     )
     private val routerAdapter: JsonAdapter<RouterConfig> = moshi.adapter(RouterConfig::class.java)
     private val debateAdapter: JsonAdapter<DebateConfig> = moshi.adapter(DebateConfig::class.java)
+    private val planExecuteAdapter: JsonAdapter<PlanExecuteConfig> =
+        moshi.adapter(PlanExecuteConfig::class.java)
+    private val presetsAdapter: JsonAdapter<List<WorkflowPreset>> = moshi.adapter(
+        Types.newParameterizedType(List::class.java, WorkflowPreset::class.java),
+    )
 
     init {
         viewModelScope.launch {
@@ -223,7 +271,16 @@ class AgentsViewModel(
     @OptIn(FlowPreview::class)
     private suspend fun observePersistableChanges() {
         _state
-            .map { PersistableSnapshot(it.mode, it.steps, it.router, it.debate) }
+            .map {
+                PersistableSnapshot(
+                    mode = it.mode,
+                    steps = it.steps,
+                    router = it.router,
+                    debate = it.debate,
+                    planExecute = it.planExecute,
+                    presets = it.presets,
+                )
+            }
             .distinctUntilChanged()
             .drop(1)
             .debounce(300)
@@ -235,6 +292,8 @@ class AgentsViewModel(
         val steps: List<StepConfig>,
         val router: RouterConfig,
         val debate: DebateConfig,
+        val planExecute: PlanExecuteConfig,
+        val presets: List<WorkflowPreset>,
     )
 
     private suspend fun restorePersistedConfig() {
@@ -245,6 +304,10 @@ class AgentsViewModel(
             ?.let { runCatching { routerAdapter.fromJson(it) }.getOrNull() }
         val savedDebate = settingsStore.agentsDebateJson.first()
             ?.let { runCatching { debateAdapter.fromJson(it) }.getOrNull() }
+        val savedPlanExecute = settingsStore.agentsPlanExecuteJson.first()
+            ?.let { runCatching { planExecuteAdapter.fromJson(it) }.getOrNull() }
+        val savedPresets = settingsStore.agentsPresetsJson.first()
+            ?.let { runCatching { presetsAdapter.fromJson(it) }.getOrNull() }
 
         _state.update { current ->
             current.copy(
@@ -252,6 +315,8 @@ class AgentsViewModel(
                 steps = savedSteps?.takeIf { it.isNotEmpty() } ?: current.steps,
                 router = savedRouter ?: current.router,
                 debate = savedDebate ?: current.debate,
+                planExecute = savedPlanExecute ?: current.planExecute,
+                presets = savedPresets ?: current.presets,
             )
         }
     }
@@ -261,6 +326,8 @@ class AgentsViewModel(
         settingsStore.setAgentsPipelineJson(stepsAdapter.toJson(snap.steps))
         settingsStore.setAgentsRouterJson(routerAdapter.toJson(snap.router))
         settingsStore.setAgentsDebateJson(debateAdapter.toJson(snap.debate))
+        settingsStore.setAgentsPlanExecuteJson(planExecuteAdapter.toJson(snap.planExecute))
+        settingsStore.setAgentsPresetsJson(presetsAdapter.toJson(snap.presets))
     }
 
     fun setStepModel(agentId: String, modelId: String?) {
@@ -519,6 +586,75 @@ class AgentsViewModel(
         _state.update { it.copy(debate = it.debate.copy(moderatorSystemPrompt = value)) }
     }
 
+    // ---- PlanExecute ----------------------------------------------------------
+
+    fun setPlannerModel(modelId: String?) {
+        _state.update { it.copy(planExecute = it.planExecute.copy(plannerModelId = modelId)) }
+    }
+
+    fun setPlannerSystem(value: String) {
+        _state.update { it.copy(planExecute = it.planExecute.copy(plannerSystemPrompt = value)) }
+    }
+
+    fun setExecutorModel(modelId: String?) {
+        _state.update { it.copy(planExecute = it.planExecute.copy(executorModelId = modelId)) }
+    }
+
+    fun setExecutorSystem(value: String) {
+        _state.update { it.copy(planExecute = it.planExecute.copy(executorSystemPrompt = value)) }
+    }
+
+    fun setCriticEnabled(enabled: Boolean) {
+        _state.update { it.copy(planExecute = it.planExecute.copy(criticEnabled = enabled)) }
+    }
+
+    fun setCriticModel(modelId: String?) {
+        _state.update { it.copy(planExecute = it.planExecute.copy(criticModelId = modelId)) }
+    }
+
+    fun setCriticSystem(value: String) {
+        _state.update { it.copy(planExecute = it.planExecute.copy(criticSystemPrompt = value)) }
+    }
+
+    // ---- Workflow presets -----------------------------------------------------
+
+    fun saveCurrentAsPreset(name: String) {
+        if (name.isBlank() || _state.value.status == RunStatus.Running) return
+        _state.update { current ->
+            val preset = WorkflowPreset(
+                id = "preset-${System.currentTimeMillis()}",
+                name = name.trim().take(60),
+                mode = current.mode,
+                steps = current.steps,
+                router = current.router,
+                debate = current.debate,
+                planExecute = current.planExecute,
+                createdAtEpochSec = System.currentTimeMillis() / 1000,
+            )
+            current.copy(presets = current.presets + preset)
+        }
+    }
+
+    fun applyPreset(id: String) {
+        if (_state.value.status == RunStatus.Running) return
+        val preset = _state.value.presets.firstOrNull { it.id == id } ?: return
+        _state.update { current ->
+            current.copy(
+                mode = preset.mode,
+                steps = preset.steps,
+                router = preset.router,
+                debate = preset.debate,
+                planExecute = preset.planExecute,
+                runs = emptyList(),
+                status = RunStatus.Idle,
+            )
+        }
+    }
+
+    fun deletePreset(id: String) {
+        _state.update { it.copy(presets = it.presets.filterNot { p -> p.id == id }) }
+    }
+
     fun cancel() {
         runJob?.cancel()
         _state.update { it.copy(status = RunStatus.Idle) }
@@ -532,6 +668,7 @@ class AgentsViewModel(
             WorkflowMode.PIPELINE -> runPipeline(current, temperature)
             WorkflowMode.ROUTER -> runRouter(current, temperature)
             WorkflowMode.DEBATE -> runDebate(current, temperature)
+            WorkflowMode.PLAN_EXECUTE -> runPlanExecuteMode(current, temperature)
         }
     }
 
@@ -608,6 +745,84 @@ class AgentsViewModel(
             }
             if (d.moderatorEnabled) {
                 add(StepRun(stepId = "moderator", agentId = d.moderatorAgentId, modelId = d.moderatorModelId))
+            }
+        }
+        _state.update { it.copy(status = RunStatus.Running, runs = initialRuns) }
+
+        startWorkflow(agents, workflow, current.userPrompt, sessions)
+    }
+
+    private fun runPlanExecuteMode(current: AgentsUiState, temperature: Float) {
+        val pe = current.planExecute
+        val plannerModel = current.installed.firstOrNull { it.id == pe.plannerModelId }
+        val executorModel = current.installed.firstOrNull { it.id == pe.executorModelId }
+        if (plannerModel == null || executorModel == null) {
+            _state.update { it.copy(status = RunStatus.Failed("Pick models for planner and executor")) }
+            return
+        }
+        val criticModel = if (pe.criticEnabled) {
+            current.installed.firstOrNull { it.id == pe.criticModelId } ?: run {
+                _state.update { it.copy(status = RunStatus.Failed("Pick a critic model or disable it")) }
+                return
+            }
+        } else null
+
+        val sessions = SharedSessionRegistry(registry, onLoaded = { storage.markUsed(it) })
+        val tools = activeTools()
+        val maxIter = settingsStore.toolMaxIterations.value
+        val agents: MutableMap<String, Agent> = mutableMapOf()
+        agents[pe.plannerAgentId] = LlmAgent(
+            id = pe.plannerAgentId,
+            displayName = plannerModel.displayName,
+            model = plannerModel,
+            registry = registry,
+            systemPrompt = pe.plannerSystemPrompt.takeIf { it.isNotBlank() },
+            maxTokens = pe.plannerMaxTokens,
+            temperature = temperature,
+            sharedSessions = sessions,
+            tools = tools,
+            maxToolIterations = maxIter,
+        )
+        agents[pe.executorAgentId] = LlmAgent(
+            id = pe.executorAgentId,
+            displayName = executorModel.displayName,
+            model = executorModel,
+            registry = registry,
+            systemPrompt = pe.executorSystemPrompt.takeIf { it.isNotBlank() },
+            maxTokens = pe.executorMaxTokens,
+            temperature = temperature,
+            sharedSessions = sessions,
+            tools = tools,
+            maxToolIterations = maxIter,
+        )
+        if (criticModel != null) {
+            agents[pe.criticAgentId] = LlmAgent(
+                id = pe.criticAgentId,
+                displayName = criticModel.displayName,
+                model = criticModel,
+                registry = registry,
+                systemPrompt = pe.criticSystemPrompt.takeIf { it.isNotBlank() },
+                maxTokens = pe.criticMaxTokens,
+                temperature = temperature,
+                sharedSessions = sessions,
+                tools = tools,
+                maxToolIterations = maxIter,
+            )
+        }
+
+        val workflow = Workflow.PlanExecute(
+            id = "plan-execute-${System.currentTimeMillis()}",
+            name = "Plan-Execute",
+            plannerAgentId = pe.plannerAgentId,
+            executorAgentId = pe.executorAgentId,
+            criticAgentId = if (pe.criticEnabled) pe.criticAgentId else null,
+        )
+
+        val initialRuns = buildList {
+            add(StepRun(stepId = "planner", agentId = pe.plannerAgentId, modelId = pe.plannerModelId))
+            add(StepRun(stepId = "executor", agentId = pe.executorAgentId, modelId = pe.executorModelId))
+            if (pe.criticEnabled) {
+                add(StepRun(stepId = "critic", agentId = pe.criticAgentId, modelId = pe.criticModelId))
             }
         }
         _state.update { it.copy(status = RunStatus.Running, runs = initialRuns) }
@@ -840,6 +1055,7 @@ class AgentsViewModel(
                                 WorkflowMode.PIPELINE -> writePipelineExport(w, snapshot)
                                 WorkflowMode.ROUTER -> writeRouterExport(w, snapshot)
                                 WorkflowMode.DEBATE -> writeDebateExport(w, snapshot)
+                                WorkflowMode.PLAN_EXECUTE -> writePlanExecuteExport(w, snapshot)
                             }
                         }
                     }
@@ -890,6 +1106,45 @@ class AgentsViewModel(
         val routed = s.runs.firstOrNull { it.stepId == "routed" }
         writeToolCalls(w, routed)
         w.append(routed?.output?.ifBlank { "_(no output)_" } ?: "_(not run)_").append("\n\n")
+    }
+
+    private fun writePlanExecuteExport(w: java.io.BufferedWriter, s: AgentsUiState) {
+        val pe = s.planExecute
+        val plannerModel = s.installed.firstOrNull { it.id == pe.plannerModelId }
+        val executorModel = s.installed.firstOrNull { it.id == pe.executorModelId }
+        val criticModel = s.installed.firstOrNull { it.id == pe.criticModelId }
+
+        w.append("## Planner")
+        plannerModel?.let { w.append(" — ").append(it.displayName) }
+        w.append("\n\n")
+        if (pe.plannerSystemPrompt.isNotBlank()) {
+            w.append("**System:** ").append(pe.plannerSystemPrompt).append("\n\n")
+        }
+        val plannerRun = s.runs.firstOrNull { it.stepId == "planner" }
+        writeToolCalls(w, plannerRun)
+        w.append(plannerRun?.output?.ifBlank { "_(no output)_" } ?: "_(not run)_").append("\n\n")
+
+        w.append("## Executor")
+        executorModel?.let { w.append(" — ").append(it.displayName) }
+        w.append("\n\n")
+        if (pe.executorSystemPrompt.isNotBlank()) {
+            w.append("**System:** ").append(pe.executorSystemPrompt).append("\n\n")
+        }
+        val executorRun = s.runs.firstOrNull { it.stepId == "executor" }
+        writeToolCalls(w, executorRun)
+        w.append(executorRun?.output?.ifBlank { "_(no output)_" } ?: "_(not run)_").append("\n\n")
+
+        if (pe.criticEnabled) {
+            w.append("## Critic")
+            criticModel?.let { w.append(" — ").append(it.displayName) }
+            w.append("\n\n")
+            if (pe.criticSystemPrompt.isNotBlank()) {
+                w.append("**System:** ").append(pe.criticSystemPrompt).append("\n\n")
+            }
+            val criticRun = s.runs.firstOrNull { it.stepId == "critic" }
+            writeToolCalls(w, criticRun)
+            w.append(criticRun?.output?.ifBlank { "_(no output)_" } ?: "_(not run)_").append("\n\n")
+        }
     }
 
     private fun writeDebateExport(w: java.io.BufferedWriter, s: AgentsUiState) {

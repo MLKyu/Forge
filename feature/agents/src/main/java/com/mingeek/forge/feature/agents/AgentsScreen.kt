@@ -61,6 +61,7 @@ fun AgentsScreen(
                 WorkflowMode.PIPELINE -> "Agents · Pipeline (${state.steps.size} step${if (state.steps.size == 1) "" else "s"})"
                 WorkflowMode.ROUTER -> "Agents · Router (${state.router.routes.size} route${if (state.router.routes.size == 1) "" else "s"})"
                 WorkflowMode.DEBATE -> "Agents · Debate (${state.debate.participants.size} participants${if (state.debate.moderatorEnabled) " + moderator" else ""})"
+                WorkflowMode.PLAN_EXECUTE -> "Agents · Plan-Execute${if (state.planExecute.criticEnabled) " + critic" else ""}"
             },
             style = MaterialTheme.typography.headlineSmall,
         )
@@ -69,6 +70,7 @@ fun AgentsScreen(
                 WorkflowMode.PIPELINE -> "Each step's output flows to the next via {input}."
                 WorkflowMode.ROUTER -> "Router classifies the input; the matching route handles the response."
                 WorkflowMode.DEBATE -> "Each participant answers; the moderator (if enabled) synthesizes a final answer."
+                WorkflowMode.PLAN_EXECUTE -> "Planner outlines a plan; executor carries it out; optional critic refines the answer."
             },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
@@ -92,6 +94,15 @@ fun AgentsScreen(
                 )
             }
         }
+
+        // ---- Workflow presets bar (named saves across modes) ----
+        WorkflowPresetsBar(
+            presets = state.presets,
+            running = state.status == RunStatus.Running,
+            onApply = viewModel::applyPreset,
+            onSave = viewModel::saveCurrentAsPreset,
+            onDelete = viewModel::deletePreset,
+        )
 
         if (state.mode == WorkflowMode.PIPELINE) {
             Text("Presets", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -157,7 +168,7 @@ fun AgentsScreen(
             ) {
                 Text("+ Add route")
             }
-        } else {
+        } else if (state.mode == WorkflowMode.DEBATE) {
             state.debate.participants.forEachIndexed { index, p ->
                 ParticipantCard(
                     index = index,
@@ -187,6 +198,19 @@ fun AgentsScreen(
                 onPickModel = { viewModel.setModeratorModel(it.id) },
                 onSystemChange = viewModel::setModeratorSystem,
             )
+        } else {
+            // PLAN_EXECUTE
+            PlanExecuteCard(
+                pe = state.planExecute,
+                installed = state.installed,
+                onPickPlanner = { viewModel.setPlannerModel(it.id) },
+                onPlannerSystem = viewModel::setPlannerSystem,
+                onPickExecutor = { viewModel.setExecutorModel(it.id) },
+                onExecutorSystem = viewModel::setExecutorSystem,
+                onCriticToggle = viewModel::setCriticEnabled,
+                onPickCritic = { viewModel.setCriticModel(it.id) },
+                onCriticSystem = viewModel::setCriticSystem,
+            )
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -210,11 +234,15 @@ fun AgentsScreen(
                                 state.router.routes.all { it.modelId != null }
                             WorkflowMode.DEBATE -> state.debate.participants.all { it.modelId != null } &&
                                 (!state.debate.moderatorEnabled || state.debate.moderatorModelId != null)
+                            WorkflowMode.PLAN_EXECUTE -> state.planExecute.plannerModelId != null &&
+                                state.planExecute.executorModelId != null &&
+                                (!state.planExecute.criticEnabled || state.planExecute.criticModelId != null)
                         }
                         val runLabel = when (state.mode) {
                             WorkflowMode.PIPELINE -> "Run pipeline"
                             WorkflowMode.ROUTER -> "Run router"
                             WorkflowMode.DEBATE -> "Run debate"
+                            WorkflowMode.PLAN_EXECUTE -> "Run plan-execute"
                         }
                         Button(
                             onClick = viewModel::run,
@@ -239,6 +267,7 @@ fun AgentsScreen(
                                 WorkflowMode.PIPELINE -> "agents-pipeline.md"
                                 WorkflowMode.ROUTER -> "agents-router.md"
                                 WorkflowMode.DEBATE -> "agents-debate.md"
+                                WorkflowMode.PLAN_EXECUTE -> "agents-plan-execute.md"
                             }
                             exportLauncher.launch(name)
                         },
@@ -575,6 +604,194 @@ private fun ModeratorCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun PlanExecuteCard(
+    pe: PlanExecuteConfig,
+    installed: List<InstalledModel>,
+    onPickPlanner: (InstalledModel) -> Unit,
+    onPlannerSystem: (String) -> Unit,
+    onPickExecutor: (InstalledModel) -> Unit,
+    onExecutorSystem: (String) -> Unit,
+    onCriticToggle: (Boolean) -> Unit,
+    onPickCritic: (InstalledModel) -> Unit,
+    onCriticSystem: (String) -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Planner", fontWeight = FontWeight.Medium)
+            DeletedModelNotice(pe.plannerModelId, installed)
+            Text("Pick a model", style = MaterialTheme.typography.bodySmall)
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                items(installed, key = { "planner-${it.id}" }) { model ->
+                    AssistChip(
+                        onClick = { onPickPlanner(model) },
+                        label = {
+                            val prefix = if (model.id == pe.plannerModelId) "✓ " else ""
+                            Text("$prefix${model.displayName.takeLast(36)}")
+                        },
+                    )
+                }
+            }
+            OutlinedTextField(
+                value = pe.plannerSystemPrompt,
+                onValueChange = onPlannerSystem,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Planner system prompt") },
+                minLines = 2,
+                maxLines = 4,
+            )
+
+            HorizontalDivider()
+            Text("Executor", fontWeight = FontWeight.Medium)
+            DeletedModelNotice(pe.executorModelId, installed)
+            Text("Pick a model", style = MaterialTheme.typography.bodySmall)
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                items(installed, key = { "executor-${it.id}" }) { model ->
+                    AssistChip(
+                        onClick = { onPickExecutor(model) },
+                        label = {
+                            val prefix = if (model.id == pe.executorModelId) "✓ " else ""
+                            Text("$prefix${model.displayName.takeLast(36)}")
+                        },
+                    )
+                }
+            }
+            OutlinedTextField(
+                value = pe.executorSystemPrompt,
+                onValueChange = onExecutorSystem,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Executor system prompt") },
+                minLines = 2,
+                maxLines = 4,
+            )
+
+            HorizontalDivider()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Critic (optional)", fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                androidx.compose.material3.Switch(
+                    checked = pe.criticEnabled,
+                    onCheckedChange = onCriticToggle,
+                )
+            }
+            if (pe.criticEnabled) {
+                DeletedModelNotice(pe.criticModelId, installed)
+                Text("Pick a model", style = MaterialTheme.typography.bodySmall)
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    items(installed, key = { "critic-${it.id}" }) { model ->
+                        AssistChip(
+                            onClick = { onPickCritic(model) },
+                            label = {
+                                val prefix = if (model.id == pe.criticModelId) "✓ " else ""
+                                Text("$prefix${model.displayName.takeLast(36)}")
+                            },
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = pe.criticSystemPrompt,
+                    onValueChange = onCriticSystem,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Critic system prompt") },
+                    minLines = 2,
+                    maxLines = 4,
+                )
+            } else {
+                Text(
+                    "Without a critic the executor's draft is the final answer.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WorkflowPresetsBar(
+    presets: List<WorkflowPreset>,
+    running: Boolean,
+    onApply: (String) -> Unit,
+    onSave: (String) -> Unit,
+    onDelete: (String) -> Unit,
+) {
+    var showSaveDialog by remember { mutableStateOf(false) }
+    var newPresetName by remember { mutableStateOf("") }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Saved presets (${presets.size})",
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f),
+                )
+                androidx.compose.material3.TextButton(
+                    onClick = { newPresetName = ""; showSaveDialog = true },
+                    enabled = !running,
+                ) { Text("Save current") }
+            }
+            if (presets.isEmpty()) {
+                Text(
+                    "Save the current mode + config under a name and reapply it later.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                for (preset in presets) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AssistChip(
+                            onClick = { if (!running) onApply(preset.id) },
+                            label = { Text("${preset.name} · ${preset.mode.displayName}") },
+                            modifier = Modifier.weight(1f),
+                        )
+                        androidx.compose.material3.TextButton(
+                            onClick = { onDelete(preset.id) },
+                            enabled = !running,
+                        ) { Text("Delete") }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showSaveDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showSaveDialog = false },
+            title = { Text("Save preset") },
+            text = {
+                OutlinedTextField(
+                    value = newPresetName,
+                    onValueChange = { newPresetName = it },
+                    label = { Text("Name") },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        onSave(newPresetName)
+                        showSaveDialog = false
+                    },
+                    enabled = newPresetName.isNotBlank(),
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showSaveDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
     }
 }
 
