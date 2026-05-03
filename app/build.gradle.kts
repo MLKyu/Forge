@@ -58,6 +58,9 @@ android {
         }
         jniLibs {
             useLegacyPackaging = false
+            // libc++_shared.so ships in both llama.cpp and ExecuTorch's fbjni;
+            // pick one and let the others use it.
+            pickFirsts += "lib/**/libc++_shared.so"
         }
     }
 
