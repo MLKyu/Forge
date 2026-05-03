@@ -47,7 +47,3 @@ hs_err_pid*
 *.gguf
 *.task
 *.pte
-
-# Internal session notes (kept local)
-/PLANNING.md
-/STATUS.md
