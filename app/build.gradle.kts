@@ -101,6 +101,7 @@ dependencies {
 
     // Agent
     implementation(project(":agent:memory"))
+    implementation(project(":agent:core"))
 
     // Runtime
     implementation(project(":runtime:core"))

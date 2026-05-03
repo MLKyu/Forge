@@ -27,6 +27,11 @@ dependencies {
     implementation(project(":core:ui"))
     implementation(project(":core:common"))
     implementation(project(":data:discovery"))
+    implementation(project(":data:storage"))
+    implementation(project(":runtime:core"))
+    implementation(project(":runtime:registry"))
+    implementation(project(":agent:core"))
+    implementation(project(":agent:curator"))
 
     implementation(libs.androidx.core.ktx)
     implementation(platform(libs.androidx.compose.bom))
