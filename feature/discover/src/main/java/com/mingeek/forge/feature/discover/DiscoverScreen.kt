@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -23,6 +25,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mingeek.forge.data.discovery.DiscoveryRepository
+import com.mingeek.forge.data.storage.InstalledModel
+import com.mingeek.forge.domain.Curation
 import com.mingeek.forge.domain.DiscoveredModel
 
 @Composable
@@ -32,6 +36,7 @@ fun DiscoverScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val installed by viewModel.installed.collectAsStateWithLifecycle()
 
     Column(modifier = modifier.fillMaxSize()) {
         Row(
@@ -39,7 +44,7 @@ fun DiscoverScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Discover", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-            if (state.isRefreshing) {
+            if (state.isRefreshing || state.isCurating) {
                 CircularProgressIndicator(modifier = Modifier.padding(end = 8.dp))
             }
             TextButton(onClick = viewModel::refresh) { Text("Refresh") }
@@ -53,20 +58,95 @@ fun DiscoverScreen(
             )
         }
 
+        CuratorBar(
+            installed = installed,
+            curatorModelId = state.curatorModelId,
+            isCurating = state.isCurating,
+            curatorError = state.curatorError,
+            curatedCount = state.curatedCount,
+            onSelectCurator = viewModel::selectCurator,
+            onRunCurator = viewModel::runCurator,
+            onClearCurations = viewModel::clearCurations,
+        )
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp),
         ) {
             items(state.feeds, key = { it.sourceId }) { feed ->
-                FeedSection(feed = feed, onOpenInCatalog = onOpenInCatalog)
+                FeedSection(
+                    feed = feed,
+                    curations = state.curations,
+                    onOpenInCatalog = onOpenInCatalog,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun FeedSection(feed: DiscoveryRepository.Feed, onOpenInCatalog: (String) -> Unit) {
+private fun CuratorBar(
+    installed: List<InstalledModel>,
+    curatorModelId: String?,
+    isCurating: Boolean,
+    curatorError: String?,
+    curatedCount: Int,
+    onSelectCurator: (String?) -> Unit,
+    onRunCurator: () -> Unit,
+    onClearCurations: () -> Unit,
+) {
+    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "AI Curator",
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    onClick = onRunCurator,
+                    enabled = curatorModelId != null && !isCurating,
+                ) { Text(if (isCurating) "Curating ($curatedCount)…" else "Run") }
+                TextButton(onClick = onClearCurations, enabled = !isCurating) { Text("Clear") }
+            }
+            if (installed.isEmpty()) {
+                Text(
+                    "Install at least one model to enable curation.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Text(
+                    "Pick which installed model rates the discovered cards.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(installed, key = { "curator-${it.id}" }) { model ->
+                        AssistChip(
+                            onClick = { onSelectCurator(model.id) },
+                            label = {
+                                val prefix = if (model.id == curatorModelId) "✓ " else ""
+                                Text("$prefix${model.displayName.takeLast(28)}")
+                            },
+                        )
+                    }
+                }
+            }
+            curatorError?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeedSection(
+    feed: DiscoveryRepository.Feed,
+    curations: Map<String, Curation>,
+    onOpenInCatalog: (String) -> Unit,
+) {
     Column {
         Text(
             feed.displayName,
@@ -94,14 +174,22 @@ private fun FeedSection(feed: DiscoveryRepository.Feed, onOpenInCatalog: (String
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             items(feed.items, key = { it.card.id }) { item ->
-                DiscoverCard(item = item, onClick = { onOpenInCatalog(item.card.id) })
+                DiscoverCard(
+                    item = item,
+                    curation = curations[item.card.id],
+                    onClick = { onOpenInCatalog(item.card.id) },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun DiscoverCard(item: DiscoveredModel, onClick: () -> Unit) {
+private fun DiscoverCard(
+    item: DiscoveredModel,
+    curation: Curation?,
+    onClick: () -> Unit,
+) {
     Card(
         modifier = Modifier.width(260.dp),
         onClick = onClick,
@@ -130,6 +218,22 @@ private fun DiscoverCard(item: DiscoveredModel, onClick: () -> Unit) {
                 item.signals.likes?.let {
                     Text("❤ ${formatCount(it)}", style = MaterialTheme.typography.labelSmall)
                 }
+            }
+            if (curation != null) {
+                HorizontalDivider(Modifier.padding(top = 8.dp, bottom = 6.dp))
+                val scoreLabel = curation.score?.let { "★ ${"%.0f".format(it)}/5" } ?: "★ ?"
+                Text(
+                    scoreLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if ((curation.score ?: 0f) >= 4) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    curation.summary,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 4,
+                )
             }
         }
     }

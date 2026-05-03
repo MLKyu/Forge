@@ -8,6 +8,8 @@ import com.mingeek.forge.data.catalog.huggingface.HuggingFaceCatalogSource
 import com.mingeek.forge.data.catalog.huggingface.HuggingFaceClient
 import com.mingeek.forge.agent.memory.MemoryStore
 import com.mingeek.forge.data.agents.FileMemoryStore
+import com.mingeek.forge.feature.agents.LlmAgent
+import com.mingeek.forge.feature.discover.CuratorAgentFactory
 import com.mingeek.forge.data.discovery.DiscoveryNotifier
 import com.mingeek.forge.data.discovery.DiscoveryRepository
 import com.mingeek.forge.data.discovery.HuggingFaceBlogSource
@@ -94,4 +96,23 @@ class ForgeContainer(appContext: Context) {
     )
 
     val discoveryNotifier = DiscoveryNotifier(appContext)
+
+    /**
+     * Builds an LlmAgent against an installed model so the Curator (and any
+     * other feature that wants a one-shot evaluator) can run without
+     * cross-module knowledge of LlmAgent. Tools intentionally empty — curator
+     * prompts are short, single-turn, and tool calls would confuse the parser.
+     */
+    val curatorAgentFactory: CuratorAgentFactory = { model ->
+        LlmAgent(
+            id = "curator-${model.id}",
+            displayName = model.displayName,
+            model = model,
+            registry = runtimeRegistry,
+            systemPrompt = "You are a concise model evaluator. Reply with one SCORE line as instructed.",
+            maxTokens = 96,
+            temperature = 0.2f,
+            tools = emptyList(),
+        )
+    }
 }
