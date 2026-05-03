@@ -52,17 +52,29 @@ sealed interface ChatTemplate {
         override val id = "gemma"
         override val stopSequences = listOf("<end_of_turn>")
         override fun format(turns: List<Turn>, addAssistantPrefix: Boolean): String = buildString {
-            for (t in turns) {
-                if (t.role == Turn.Role.SYSTEM) {
-                    // Gemma has no system role; prepend to first user turn
-                    continue
-                }
+            // Gemma's chat template doesn't define a system role. Earlier
+            // versions of this code dropped SYSTEM turns silently, which
+            // explained why agent system prompts had no effect on Gemma
+            // models. Merge every SYSTEM turn (concatenated) into the
+            // first user turn so the persona / instructions actually
+            // reach the model.
+            val systemBlock = turns
+                .filter { it.role == Turn.Role.SYSTEM }
+                .joinToString("\n\n") { it.content }
+                .takeIf { it.isNotBlank() }
+            val nonSystem = turns.filter { it.role != Turn.Role.SYSTEM }
+            var injectedSystem = false
+            for (t in nonSystem) {
                 val tag = if (t.role == Turn.Role.USER) "user" else "model"
                 append("<start_of_turn>$tag\n")
+                if (!injectedSystem && t.role == Turn.Role.USER && systemBlock != null) {
+                    append(systemBlock)
+                    append("\n\n")
+                    injectedSystem = true
+                }
                 append(t.content)
                 append("<end_of_turn>\n")
             }
-            // Inject system as a prefix on the first user turn (simple approach)
             if (addAssistantPrefix) append("<start_of_turn>model\n")
         }
     }
