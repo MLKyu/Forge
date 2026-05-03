@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.mingeek.forge.data.discovery.Collection
 import com.mingeek.forge.data.discovery.DiscoveryRepository
 import com.mingeek.forge.data.storage.InstalledModel
 import com.mingeek.forge.domain.Curation
@@ -74,6 +75,18 @@ fun DiscoverScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp),
         ) {
+            if (state.collections.isNotEmpty()) {
+                item {
+                    Text(
+                        "Curated collections",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(start = 16.dp, bottom = 4.dp),
+                    )
+                }
+                items(state.collections, key = { "col-${it.id}" }) { collection ->
+                    CollectionSection(collection = collection, onOpenInCatalog = onOpenInCatalog)
+                }
+            }
             items(state.feeds, key = { it.sourceId }) { feed ->
                 FeedSection(
                     feed = feed,
@@ -136,6 +149,27 @@ private fun CuratorBar(
             }
             curatorError?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CollectionSection(collection: Collection, onOpenInCatalog: (String) -> Unit) {
+    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        Text(collection.title, fontWeight = FontWeight.Medium)
+        Text(
+            collection.description,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 6.dp),
+        )
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(collection.modelIds, key = { "${collection.id}-$it" }) { modelId ->
+                AssistChip(
+                    onClick = { onOpenInCatalog(modelId) },
+                    label = { Text(modelId.takeLast(36)) },
+                )
             }
         }
     }
