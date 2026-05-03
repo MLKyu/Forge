@@ -16,6 +16,7 @@ import com.mingeek.forge.domain.ModelCard
 import com.mingeek.forge.domain.ModelFormat
 import com.mingeek.forge.domain.RuntimeId
 import com.mingeek.forge.domain.Source
+import com.mingeek.forge.runtime.registry.RuntimeRegistry
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,7 +34,13 @@ data class CatalogUiState(
     val results: List<ModelCard> = emptyList(),
     val error: String? = null,
     val selectedDetail: ModelCardDetail? = null,
-    val variantFits: Map<String, DeviceFitScore> = emptyMap(),
+    /**
+     * Per-variant fit per runtime. Outer key is the file URL (matches the
+     * existing `variants/files` zip), inner map keys are RuntimeIds compatible
+     * with that variant's format. PLANNING §10's "same model, different
+     * runtime, different fit" UI reads from this.
+     */
+    val variantRuntimeFits: Map<String, Map<RuntimeId, DeviceFitScore>> = emptyMap(),
     val isLoadingDetail: Boolean = false,
     val downloads: Map<String, DownloadProgress> = emptyMap(),
 ) {
@@ -46,6 +53,7 @@ class CatalogViewModel(
     private val downloader: ModelDownloader,
     private val storage: ModelStorage,
     private val fitScorer: DeviceFitScorer,
+    private val runtimeRegistry: RuntimeRegistry,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CatalogUiState(sort = SearchQuery.Sort.DOWNLOADS))
@@ -100,18 +108,37 @@ class CatalogViewModel(
 
     fun openDetailsById(id: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoadingDetail = true, selectedDetail = null, variantFits = emptyMap(), error = null) }
+            _state.update {
+                it.copy(
+                    isLoadingDetail = true,
+                    selectedDetail = null,
+                    variantRuntimeFits = emptyMap(),
+                    error = null,
+                )
+            }
             try {
                 val detail = catalogSource.details(id)
+                // For each (variant, file) pair, score every registered runtime
+                // that supports the variant's format. Empty list means no
+                // runtime is available — UI will show that explicitly.
                 val fits = detail.variants.zip(detail.files).associate { (variant, file) ->
-                    file.url to fitScorer.score(
-                        sizeBytes = file.sizeBytes,
-                        contextLength = variant.contextLength,
-                        format = variant.format,
-                        runtime = variant.recommendedRuntimes.firstOrNull() ?: RuntimeId.LLAMA_CPP,
+                    val runtimes = runtimeRegistry.runtimesFor(variant.format)
+                    file.url to runtimes.associate { runtime ->
+                        runtime.id to fitScorer.score(
+                            sizeBytes = file.sizeBytes,
+                            contextLength = variant.contextLength,
+                            format = variant.format,
+                            runtime = runtime.id,
+                        )
+                    }
+                }
+                _state.update {
+                    it.copy(
+                        isLoadingDetail = false,
+                        selectedDetail = detail,
+                        variantRuntimeFits = fits,
                     )
                 }
-                _state.update { it.copy(isLoadingDetail = false, selectedDetail = detail, variantFits = fits) }
             } catch (t: Throwable) {
                 _state.update { it.copy(isLoadingDetail = false, error = t.message ?: "Detail load failed") }
             }
@@ -119,7 +146,7 @@ class CatalogViewModel(
     }
 
     fun closeDetails() {
-        _state.update { it.copy(selectedDetail = null, variantFits = emptyMap()) }
+        _state.update { it.copy(selectedDetail = null, variantRuntimeFits = emptyMap()) }
     }
 
     fun downloadVariant(card: ModelCard, file: RemoteFile) {

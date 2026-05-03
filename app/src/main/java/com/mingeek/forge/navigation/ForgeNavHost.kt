@@ -42,6 +42,7 @@ fun ForgeNavHost(
             downloader = container.downloader,
             storage = container.storage,
             fitScorer = container.deviceFitScorer,
+            runtimeRegistry = container.runtimeRegistry,
         )
         libraryScreen(
             storage = container.storage,

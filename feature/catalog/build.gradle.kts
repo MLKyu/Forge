@@ -30,6 +30,8 @@ dependencies {
     implementation(project(":data:catalog"))
     implementation(project(":data:download"))
     implementation(project(":data:storage"))
+    implementation(project(":runtime:core"))
+    implementation(project(":runtime:registry"))
 
     implementation(libs.androidx.core.ktx)
     implementation(platform(libs.androidx.compose.bom))
