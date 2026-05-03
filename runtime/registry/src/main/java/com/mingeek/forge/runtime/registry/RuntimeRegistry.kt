@@ -18,4 +18,8 @@ class RuntimeRegistry(runtimes: List<InferenceRuntime>) {
         }
         return all.firstOrNull { format in it.supportedFormats }
     }
+
+    /** Every runtime registered for [format], in registration order. */
+    fun runtimesFor(format: ModelFormat): List<InferenceRuntime> =
+        all.filter { format in it.supportedFormats }
 }

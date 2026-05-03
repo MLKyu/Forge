@@ -13,6 +13,7 @@ import com.mingeek.forge.core.hardware.DeviceFitScorer
 import com.mingeek.forge.data.catalog.ModelCatalogSource
 import com.mingeek.forge.data.download.ModelDownloader
 import com.mingeek.forge.data.storage.ModelStorage
+import com.mingeek.forge.runtime.registry.RuntimeRegistry
 
 const val CatalogRoute = "catalog"
 private const val ARG_MODEL_ID = "modelId"
@@ -26,6 +27,7 @@ fun NavGraphBuilder.catalogScreen(
     downloader: ModelDownloader,
     storage: ModelStorage,
     fitScorer: DeviceFitScorer,
+    runtimeRegistry: RuntimeRegistry,
     modifier: Modifier = Modifier,
 ) {
     composable(
@@ -42,7 +44,9 @@ fun NavGraphBuilder.catalogScreen(
 
         val viewModel: CatalogViewModel = viewModel(
             factory = viewModelFactory {
-                initializer { CatalogViewModel(catalogSource, downloader, storage, fitScorer) }
+                initializer {
+                    CatalogViewModel(catalogSource, downloader, storage, fitScorer, runtimeRegistry)
+                }
             }
         )
 

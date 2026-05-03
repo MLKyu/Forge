@@ -165,7 +165,7 @@ fun CatalogScreen(
             DetailSheet(
                 detail = detail,
                 downloads = state.downloads,
-                variantFits = state.variantFits,
+                variantRuntimeFits = state.variantRuntimeFits,
                 onDownload = { card, file -> viewModel.downloadVariant(card, file) },
             )
         }
@@ -201,7 +201,7 @@ private fun ResultCard(card: ModelCard, onClick: () -> Unit) {
 private fun DetailSheet(
     detail: ModelCardDetail,
     downloads: Map<String, DownloadProgress>,
-    variantFits: Map<String, DeviceFitScore>,
+    variantRuntimeFits: Map<String, Map<com.mingeek.forge.domain.RuntimeId, DeviceFitScore>>,
     onDownload: (ModelCard, RemoteFile) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -225,7 +225,7 @@ private fun DetailSheet(
                     variant = variant,
                     file = file,
                     progress = downloads[file.url],
-                    fit = variantFits[file.url],
+                    runtimeFits = variantRuntimeFits[file.url].orEmpty(),
                     onDownload = { onDownload(variant, file) },
                 )
             }
@@ -243,9 +243,11 @@ private fun VariantRow(
     variant: ModelCard,
     file: RemoteFile,
     progress: DownloadProgress?,
-    fit: DeviceFitScore?,
+    runtimeFits: Map<com.mingeek.forge.domain.RuntimeId, DeviceFitScore>,
     onDownload: () -> Unit,
 ) {
+    val primaryFit = variant.recommendedRuntimes.firstNotNullOfOrNull { runtimeFits[it] }
+        ?: runtimeFits.values.firstOrNull()
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().padding(12.dp)) {
             Text(file.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
@@ -258,11 +260,34 @@ private fun VariantRow(
                 modifier = Modifier.padding(top = 6.dp),
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
             ) {
-                if (fit != null) DeviceFitBadge(score = fit)
+                if (primaryFit != null) DeviceFitBadge(score = primaryFit)
                 LicenseChip(license = variant.license)
             }
-            if (fit != null) {
-                fit.reasons.firstOrNull()?.let { reason ->
+            if (runtimeFits.size > 1 || (runtimeFits.size == 1 && primaryFit != null)) {
+                Text(
+                    "Runtime options:",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(top = 6.dp, bottom = 2.dp),
+                )
+                for ((runtimeId, fit) in runtimeFits) {
+                    Text(
+                        "• ${runtimeId.name.replace('_', ' ').lowercase()} · " +
+                            "${fit.tier.name}" +
+                            (fit.estimatedTokensPerSecond?.let { " · ~${it.toInt()} tok/s" } ?: ""),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else if (runtimeFits.isEmpty()) {
+                Text(
+                    "No registered runtime supports ${variant.format}.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+            if (primaryFit != null) {
+                primaryFit.reasons.firstOrNull()?.let { reason ->
                     Text(
                         reason,
                         style = MaterialTheme.typography.bodySmall,
