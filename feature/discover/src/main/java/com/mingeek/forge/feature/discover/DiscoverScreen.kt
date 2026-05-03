@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mingeek.forge.data.discovery.Collection
 import com.mingeek.forge.data.discovery.DiscoveryRepository
+import com.mingeek.forge.data.discovery.RecommendedModel
 import com.mingeek.forge.data.storage.InstalledModel
 import com.mingeek.forge.domain.Curation
 import com.mingeek.forge.domain.DiscoveredModel
@@ -75,6 +76,25 @@ fun DiscoverScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 12.dp),
         ) {
+            if (state.recommendations.isNotEmpty()) {
+                item {
+                    Text(
+                        "For you",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(start = 16.dp, bottom = 4.dp),
+                    )
+                }
+                item {
+                    LazyRow(
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(state.recommendations, key = { "rec-${it.candidate.card.id}" }) { rec ->
+                            RecommendationCard(rec = rec, onClick = { onOpenInCatalog(rec.candidate.card.id) })
+                        }
+                    }
+                }
+            }
             if (state.collections.isNotEmpty()) {
                 item {
                     Text(
@@ -149,6 +169,40 @@ private fun CuratorBar(
             }
             curatorError?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecommendationCard(rec: RecommendedModel, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.width(260.dp),
+        onClick = onClick,
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                rec.candidate.card.displayName,
+                fontWeight = FontWeight.Medium,
+                maxLines = 2,
+            )
+            Text(
+                rec.candidate.card.family.name,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Match: ${"%.0f%%".format((rec.score * 100f).coerceAtMost(100f))}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            for (reason in rec.reasons) {
+                Text(
+                    "• $reason",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

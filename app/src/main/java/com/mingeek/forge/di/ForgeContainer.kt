@@ -14,6 +14,7 @@ import com.mingeek.forge.data.discovery.CollectionRepository
 import com.mingeek.forge.data.discovery.DiscoveryNotifier
 import com.mingeek.forge.data.discovery.DiscoveryRepository
 import com.mingeek.forge.data.discovery.StaticCollectionsSource
+import com.mingeek.forge.data.discovery.UsagePatternRecommender
 import com.mingeek.forge.data.discovery.HuggingFaceBlogSource
 import com.mingeek.forge.data.discovery.HuggingFaceLikedSource
 import com.mingeek.forge.data.discovery.HuggingFaceRecentSource
@@ -92,6 +93,8 @@ class ForgeContainer(appContext: Context) {
     val collectionRepository = CollectionRepository(
         sources = listOf(StaticCollectionsSource()),
     )
+
+    val recommender = UsagePatternRecommender()
 
     val agentRunHistory: MemoryStore = FileMemoryStore(
         File(appContext.filesDir, "agents/run_history.json"),

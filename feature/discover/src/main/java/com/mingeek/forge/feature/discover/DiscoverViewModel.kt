@@ -8,6 +8,8 @@ import com.mingeek.forge.agent.curator.ModelEvaluator
 import com.mingeek.forge.data.discovery.Collection
 import com.mingeek.forge.data.discovery.CollectionRepository
 import com.mingeek.forge.data.discovery.DiscoveryRepository
+import com.mingeek.forge.data.discovery.RecommendationEngine
+import com.mingeek.forge.data.discovery.RecommendedModel
 import com.mingeek.forge.data.storage.InstalledModel
 import com.mingeek.forge.data.storage.ModelStorage
 import com.mingeek.forge.domain.Curation
@@ -23,6 +25,7 @@ data class DiscoverUiState(
     val isRefreshing: Boolean = false,
     val feeds: List<DiscoveryRepository.Feed> = emptyList(),
     val collections: List<Collection> = emptyList(),
+    val recommendations: List<RecommendedModel> = emptyList(),
     val error: String? = null,
     val isCurating: Boolean = false,
     val curatorModelId: String? = null,
@@ -42,6 +45,7 @@ typealias CuratorAgentFactory = (InstalledModel) -> Agent
 class DiscoverViewModel(
     private val repository: DiscoveryRepository,
     private val collectionRepository: CollectionRepository,
+    private val recommender: RecommendationEngine,
     storage: ModelStorage,
     private val curatorAgentFactory: CuratorAgentFactory,
 ) : ViewModel() {
@@ -60,8 +64,17 @@ class DiscoverViewModel(
             try {
                 val feeds = repository.fetchAll()
                 val collections = runCatching { collectionRepository.fetchAll() }.getOrDefault(emptyList())
+                val candidates = feeds.flatMap { it.items }.distinctBy { it.card.id }
+                val recs = runCatching {
+                    recommender.recommend(candidates, installed.value, limit = 12)
+                }.getOrDefault(emptyList())
                 _state.update {
-                    it.copy(isRefreshing = false, feeds = feeds, collections = collections)
+                    it.copy(
+                        isRefreshing = false,
+                        feeds = feeds,
+                        collections = collections,
+                        recommendations = recs,
+                    )
                 }
             } catch (t: Throwable) {
                 _state.update { it.copy(isRefreshing = false, error = t.message ?: "fetch failed") }
