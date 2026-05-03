@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.mingeek.forge.core.ui.permissions.rememberPermissionRequester
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -151,18 +152,53 @@ fun SettingsScreen(
                 )
             }
             HorizontalDivider()
+            val notifPermission = rememberPermissionRequester(
+                permission = android.Manifest.permission.POST_NOTIFICATIONS,
+            )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Discovery notifications", fontWeight = FontWeight.Medium)
                     Text(
-                        "Background polls every ~6 hours and notifies you when new models surface from Trending / Recent / Liked / HF Blog / r/LocalLLaMA. Requires the Notifications permission on Android 13+.",
+                        "Background poll across every Discovery source; notifies on new models. Requires the Notifications permission on Android 13+.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Switch(
-                    checked = state.discoveryNotificationsEnabled,
-                    onCheckedChange = viewModel::onDiscoveryNotificationsChanged,
+                    checked = state.discoveryNotificationsEnabled && notifPermission.isGranted,
+                    onCheckedChange = { wantOn ->
+                        if (wantOn && !notifPermission.isGranted) {
+                            notifPermission.request()
+                            // Persist the intent to enable; once permission is
+                            // granted on the next composition, the worker
+                            // observer will pick it up.
+                            viewModel.onDiscoveryNotificationsChanged(true)
+                        } else {
+                            viewModel.onDiscoveryNotificationsChanged(wantOn)
+                        }
+                    },
+                )
+            }
+            if (state.discoveryNotificationsEnabled && !notifPermission.isGranted) {
+                Text(
+                    if (notifPermission.justDenied)
+                        "Permission denied. Enable Notifications for Forge in system settings."
+                    else
+                        "Notification permission required — tap the switch again to grant.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            if (state.discoveryNotificationsEnabled) {
+                Text(
+                    "Poll every: ${state.discoveryNotificationsIntervalHours}h",
+                    fontWeight = FontWeight.Medium,
+                )
+                Slider(
+                    value = state.discoveryNotificationsIntervalHours.toFloat(),
+                    onValueChange = { viewModel.onDiscoveryNotificationsIntervalChanged(it.toInt()) },
+                    valueRange = 1f..24f,
+                    steps = 22,
                 )
             }
         }

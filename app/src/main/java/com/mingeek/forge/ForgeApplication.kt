@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 class ForgeApplication : Application() {
@@ -25,12 +26,16 @@ class ForgeApplication : Application() {
             settingsStore = container.settingsStore,
             notifier = container.discoveryNotifier,
         )
-        // Apply current toggle state on launch and react to changes — no
-        // need for the user to bounce the app after flipping the switch.
+        // Apply current toggle / interval on launch and react to either
+        // changing — no need for the user to bounce the app.
         appScope.launch {
-            container.settingsStore.discoveryNotificationsEnabled.collectLatest { enabled ->
-                DiscoveryWorkScheduler.apply(this@ForgeApplication, enabled)
-            }
+            combine(
+                container.settingsStore.discoveryNotificationsEnabled,
+                container.settingsStore.discoveryNotificationsIntervalHours,
+            ) { enabled, hours -> enabled to hours }
+                .collectLatest { (enabled, hours) ->
+                    DiscoveryWorkScheduler.apply(this@ForgeApplication, enabled, hours)
+                }
         }
     }
 }

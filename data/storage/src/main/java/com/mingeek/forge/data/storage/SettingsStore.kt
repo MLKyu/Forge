@@ -76,6 +76,12 @@ class SettingsStore(context: Context) {
         .map { it[DISCOVERY_NOTIFICATIONS_ENABLED] ?: false }
         .stateIn(scope, SharingStarted.Eagerly, false)
 
+    /** Polling interval for the discovery worker, in hours. WorkManager
+     *  enforces a 15-minute floor so anything below 1h would be wasted. */
+    val discoveryNotificationsIntervalHours: StateFlow<Int> = ds.data
+        .map { (it[DISCOVERY_NOTIFICATIONS_INTERVAL_HOURS] ?: 6).coerceIn(1, 24) }
+        .stateIn(scope, SharingStarted.Eagerly, 6)
+
     /** Set of DiscoveredModel.card.id values we've already surfaced as a notification. */
     val seenDiscoveryIds: StateFlow<Set<String>> = ds.data
         .map { it[SEEN_DISCOVERY_IDS] ?: emptySet() }
@@ -145,6 +151,10 @@ class SettingsStore(context: Context) {
         ds.edit { it[DISCOVERY_NOTIFICATIONS_ENABLED] = enabled }
     }
 
+    suspend fun setDiscoveryNotificationsIntervalHours(value: Int) {
+        ds.edit { it[DISCOVERY_NOTIFICATIONS_INTERVAL_HOURS] = value.coerceIn(1, 24) }
+    }
+
     /** Cap to avoid the set growing unboundedly — drops oldest seen ids. */
     suspend fun markDiscoveryIdsSeen(ids: Set<String>, retain: Int = 500) {
         ds.edit { prefs ->
@@ -171,6 +181,8 @@ class SettingsStore(context: Context) {
         val AUTO_CLEANUP_BUDGET_GB: Preferences.Key<Int> = intPreferencesKey("auto_cleanup_budget_gb")
         val DISCOVERY_NOTIFICATIONS_ENABLED: Preferences.Key<Boolean> =
             booleanPreferencesKey("discovery_notifications_enabled")
+        val DISCOVERY_NOTIFICATIONS_INTERVAL_HOURS: Preferences.Key<Int> =
+            intPreferencesKey("discovery_notifications_interval_hours")
         val SEEN_DISCOVERY_IDS: Preferences.Key<Set<String>> =
             stringSetPreferencesKey("seen_discovery_ids")
     }
