@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 
 /**
- * Default orchestrator. Implements Pipeline and Router; Debate / PlanExecute emit Failed.
+ * Default orchestrator. Implements every Workflow sealed variant.
  */
 class WorkflowOrchestrator(
     private val agents: Map<String, Agent>,
@@ -21,13 +21,124 @@ class WorkflowOrchestrator(
             is Workflow.Pipeline -> runPipeline(workflow, input)
             is Workflow.Router -> runRouter(workflow, input)
             is Workflow.Debate -> runDebate(workflow, input)
-            is Workflow.PlanExecute -> emit(
-                OrchestratorEvent.Failed(
-                    workflow.id,
-                    "PlanExecute workflow not implemented (use a 3-step Pipeline preset instead)",
-                )
-            )
+            is Workflow.PlanExecute -> runPlanExecute(workflow, input)
         }
+    }
+
+    private suspend fun FlowCollector<OrchestratorEvent>.runPlanExecute(
+        workflow: Workflow.PlanExecute,
+        userInput: String,
+    ) {
+        val planner = agents[workflow.plannerAgentId]
+        if (planner == null) {
+            emit(OrchestratorEvent.Failed(workflow.id, "Planner agent not found: ${workflow.plannerAgentId}"))
+            return
+        }
+        val executor = agents[workflow.executorAgentId]
+        if (executor == null) {
+            emit(OrchestratorEvent.Failed(workflow.id, "Executor agent not found: ${workflow.executorAgentId}"))
+            return
+        }
+        val critic = workflow.criticAgentId?.let { agents[it] }
+        if (workflow.criticAgentId != null && critic == null) {
+            emit(OrchestratorEvent.Failed(workflow.id, "Critic agent not found: ${workflow.criticAgentId}"))
+            return
+        }
+
+        // Step 1: planner outlines a plan from the user request.
+        val planText = runStep(
+            workflow.id,
+            stepId = "planner",
+            agentId = workflow.plannerAgentId,
+            agent = planner,
+            prompt = userInput,
+        ) ?: return
+
+        // Step 2: executor turns the plan into a draft answer.
+        val executorPrompt = buildString {
+            append("Plan:\n").append(planText).append("\n\n")
+            append("Original request:\n").append(userInput).append("\n\n")
+            append("Carry out the plan and produce the answer.")
+        }
+        val executorText = runStep(
+            workflow.id,
+            stepId = "executor",
+            agentId = workflow.executorAgentId,
+            agent = executor,
+            prompt = executorPrompt,
+        ) ?: return
+
+        if (critic == null) {
+            emit(OrchestratorEvent.Completed(workflow.id, executorText))
+            return
+        }
+
+        // Step 3: critic reviews and refines into the final answer.
+        val criticPrompt = buildString {
+            append("Original request:\n").append(userInput).append("\n\n")
+            append("Plan that was followed:\n").append(planText).append("\n\n")
+            append("Draft answer from the executor:\n").append(executorText).append("\n\n")
+            append("Identify weaknesses and produce an improved final answer.")
+        }
+        val criticText = runStep(
+            workflow.id,
+            stepId = "critic",
+            agentId = workflow.criticAgentId!!,
+            agent = critic,
+            prompt = criticPrompt,
+        ) ?: return
+
+        emit(OrchestratorEvent.Completed(workflow.id, criticText))
+    }
+
+    /**
+     * Run a single agent step, emitting Started/Token/ToolCall/ToolResult/Completed
+     * events. Returns the trimmed final text on success, or null after emitting
+     * Failed (so the caller short-circuits the workflow).
+     */
+    private suspend fun FlowCollector<OrchestratorEvent>.runStep(
+        workflowId: String,
+        stepId: String,
+        agentId: String,
+        agent: Agent,
+        prompt: String,
+    ): String? {
+        emit(OrchestratorEvent.StepStarted(workflowId, stepId, agentId))
+        val output = StringBuilder()
+        var failed: String? = null
+        try {
+            agent.run(AgentInput(text = prompt), AgentContext(agentId = agentId)).collect { ev ->
+                when (ev) {
+                    is AgentEvent.Token -> {
+                        output.append(ev.piece)
+                        emit(OrchestratorEvent.StepToken(workflowId, stepId, ev.piece))
+                    }
+                    is AgentEvent.Failed -> failed = ev.message
+                    is AgentEvent.ToolCall -> emit(
+                        OrchestratorEvent.StepToolCall(
+                            workflowId, stepId, ev.name, ev.argumentsJson,
+                        ),
+                    )
+                    is AgentEvent.ToolResult -> emit(
+                        OrchestratorEvent.StepToolResult(
+                            workflowId, stepId, ev.name, ev.resultJson, ev.isError,
+                        ),
+                    )
+                    is AgentEvent.Final,
+                    is AgentEvent.Thought -> { /* ignore */ }
+                }
+            }
+        } catch (t: Throwable) {
+            emit(OrchestratorEvent.Failed(workflowId, t.message ?: "$stepId failed", t))
+            return null
+        }
+        if (failed != null) {
+            emit(OrchestratorEvent.Failed(workflowId, failed!!))
+            return null
+        }
+        val text = output.toString().trim()
+        emit(OrchestratorEvent.StepCompleted(workflowId, stepId, text))
+        return text
     }
 
     private suspend fun FlowCollector<OrchestratorEvent>.runDebate(
