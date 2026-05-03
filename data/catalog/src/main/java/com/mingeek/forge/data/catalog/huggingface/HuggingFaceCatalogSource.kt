@@ -43,6 +43,13 @@ class HuggingFaceCatalogSource(
         val readme = (detail.cardData?.get("model_summary") as? String)
             ?: detail.cardData?.get("description") as? String
 
+        // cardData["license"] is the per-card-yaml license declaration; when
+        // present it's authoritative over the tag-based inference because
+        // model authors set it explicitly. Fall back to tag inference.
+        val cardLicense = (detail.cardData?.get("license") as? String)
+            ?.let { com.mingeek.forge.domain.Licenses.fromSpdx(it) }
+        val effectiveLicense = cardLicense ?: inferLicense(detail.tags)
+
         val variants = mutableListOf<ModelCard>()
         val files = mutableListOf<RemoteFile>()
 
@@ -67,7 +74,7 @@ class HuggingFaceCatalogSource(
                 format = format,
                 contextLength = 4096,
                 capabilities = setOf(Capability.CHAT, Capability.INSTRUCT),
-                license = inferLicense(detail.tags),
+                license = effectiveLicense,
                 source = Source.HuggingFace(detail.id),
                 recommendedRuntimes = listOf(runtime),
             )
@@ -88,7 +95,7 @@ class HuggingFaceCatalogSource(
             format = ModelFormat.GGUF,
             contextLength = 4096,
             capabilities = setOf(Capability.CHAT),
-            license = inferLicense(detail.tags),
+            license = effectiveLicense,
             source = Source.HuggingFace(detail.id),
             recommendedRuntimes = listOf(RuntimeId.LLAMA_CPP),
         )
@@ -154,16 +161,5 @@ class HuggingFaceCatalogSource(
         return ModelFamily(name = name, vendor = vendor, parameterBillions = parameterB)
     }
 
-    private fun inferLicense(tags: List<String>): License {
-        val licenseTag = tags.firstOrNull { it.startsWith("license:") }?.substringAfter("license:")
-        return License(
-            spdxId = licenseTag ?: "unknown",
-            displayName = licenseTag ?: "Unknown",
-            commercialUseAllowed = licenseTag in commercialOk,
-        )
-    }
-
-    private companion object {
-        val commercialOk = setOf("apache-2.0", "mit", "bsd-3-clause", "bsd-2-clause", "cc-by-4.0")
-    }
+    private fun inferLicense(tags: List<String>): License = com.mingeek.forge.domain.Licenses.fromTags(tags)
 }

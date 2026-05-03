@@ -7,6 +7,7 @@ import com.mingeek.forge.domain.DeviceFitScore
 import com.mingeek.forge.domain.DiscoveredModel
 import com.mingeek.forge.domain.DiscoverySignals
 import com.mingeek.forge.domain.License
+import com.mingeek.forge.domain.Licenses
 import com.mingeek.forge.domain.ModelCard
 import com.mingeek.forge.domain.ModelFamily
 import com.mingeek.forge.domain.ModelFormat
@@ -93,11 +94,7 @@ private fun HfModelSummary.toCard(): ModelCard = ModelCard(
     format = ModelFormat.GGUF,
     contextLength = 4096,
     capabilities = setOf(Capability.CHAT),
-    license = License(
-        spdxId = tags.firstOrNull { it.startsWith("license:") }?.substringAfter("license:") ?: "unknown",
-        displayName = tags.firstOrNull { it.startsWith("license:") }?.substringAfter("license:") ?: "Unknown",
-        commercialUseAllowed = false,
-    ),
+    license = Licenses.fromTags(tags),
     source = Source.HuggingFace(id),
     recommendedRuntimes = listOf(RuntimeId.LLAMA_CPP),
 )
