@@ -8,6 +8,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.mingeek.forge.data.discovery.CollectionRepository
 import com.mingeek.forge.data.discovery.DiscoveryRepository
+import com.mingeek.forge.data.discovery.RecommendationEngine
 import com.mingeek.forge.data.storage.ModelStorage
 
 const val DiscoverRoute = "discover"
@@ -15,6 +16,7 @@ const val DiscoverRoute = "discover"
 fun NavGraphBuilder.discoverScreen(
     repository: DiscoveryRepository,
     collectionRepository: CollectionRepository,
+    recommender: RecommendationEngine,
     storage: ModelStorage,
     curatorAgentFactory: CuratorAgentFactory,
     onOpenInCatalog: (String) -> Unit,
@@ -24,7 +26,13 @@ fun NavGraphBuilder.discoverScreen(
         val viewModel: DiscoverViewModel = viewModel(
             factory = viewModelFactory {
                 initializer {
-                    DiscoverViewModel(repository, collectionRepository, storage, curatorAgentFactory)
+                    DiscoverViewModel(
+                        repository = repository,
+                        collectionRepository = collectionRepository,
+                        recommender = recommender,
+                        storage = storage,
+                        curatorAgentFactory = curatorAgentFactory,
+                    )
                 }
             }
         )
