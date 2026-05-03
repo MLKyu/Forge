@@ -82,13 +82,14 @@ object DiscoveryWorkScheduler {
 
     private const val UNIQUE_NAME = "forge-discovery-watch"
 
-    fun apply(context: Context, enabled: Boolean) {
+    fun apply(context: Context, enabled: Boolean, intervalHours: Int = 6) {
         val wm = WorkManager.getInstance(context)
         if (!enabled) {
             wm.cancelUniqueWork(UNIQUE_NAME)
             return
         }
-        val request = PeriodicWorkRequestBuilder<DiscoveryWatchWorker>(6, TimeUnit.HOURS)
+        val safeHours = intervalHours.coerceIn(1, 24).toLong()
+        val request = PeriodicWorkRequestBuilder<DiscoveryWatchWorker>(safeHours, TimeUnit.HOURS)
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
