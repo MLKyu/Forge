@@ -11,6 +11,7 @@ import com.mingeek.forge.feature.compare.compareScreen
 import com.mingeek.forge.feature.discover.DiscoverRoute
 import com.mingeek.forge.feature.discover.discoverScreen
 import com.mingeek.forge.feature.library.libraryScreen
+import com.mingeek.forge.feature.settings.SettingsRoute
 import com.mingeek.forge.feature.settings.settingsScreen
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -31,15 +32,18 @@ fun ForgeNavHost(
             repository = container.discoveryRepository,
             collectionRepository = container.collectionRepository,
             recommender = container.recommender,
+            fitScorer = container.deviceFitScorer,
             storage = container.storage,
+            settingsStore = container.settingsStore,
             curatorAgentFactory = container.curatorAgentFactory,
             onOpenInCatalog = { modelId ->
                 navController.navigate(catalogRouteWithModelId(modelId))
             },
+            onOpenSettings = { navController.navigate(SettingsRoute) },
         )
         catalogScreen(
             catalogSource = container.catalogSource,
-            downloader = container.downloader,
+            downloadQueue = container.downloadQueue,
             storage = container.storage,
             fitScorer = container.deviceFitScorer,
             runtimeRegistry = container.runtimeRegistry,

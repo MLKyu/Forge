@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Header -->
+    <string name="library_title">라이브러리</string>
+    <string name="library_import">가져오기…</string>
+
+    <!-- Summary line -->
+    <string name="library_no_models_installed">설치된 모델이 없어요</string>
+    <string name="library_models_installed">설치된 모델 %1$d개</string>
+    <string name="library_filter_match_count">%2$d개 중 %1$d개 일치</string>
+
+    <!-- Empty state -->
+    <string name="library_empty_hint">카탈로그 탭에서 HuggingFace의 GGUF 모델을 다운로드하세요.</string>
+
+    <!-- Search / sort -->
+    <string name="library_search_label">이름, 파일명 또는 양자화로 검색</string>
+    <string name="library_no_matches">일치하는 항목이 없어요.</string>
+    <string name="library_sort_name">이름</string>
+    <string name="library_sort_largest">큰 순서</string>
+    <string name="library_sort_newest">최신순</string>
+    <string name="library_sort_fastest">빠른 순서</string>
+
+    <!-- Item card -->
+    <string name="library_item_meta">%1$s · %2$s · %3$s</string>
+    <string name="library_item_runtime">런타임: %1$s</string>
+    <string name="library_item_benchmark_summary">%1$.1f tok/s · TTFT %2$dms</string>
+    <string name="library_item_benchmark_measured">%2$s에서 %1$s에 측정됨</string>
+    <string name="library_item_pin">고정</string>
+    <string name="library_item_unpin">고정 해제</string>
+    <string name="library_item_delete">삭제</string>
+
+    <!-- Benchmark state -->
+    <string name="library_benchmark_running">벤치마크 측정 중…</string>
+    <string name="library_benchmark_failed">벤치마크 실패: %1$s</string>
+    <string name="library_benchmark_retry">다시 시도</string>
+    <string name="library_benchmark_start">벤치마크</string>
+    <string name="library_benchmark_rerun">다시 벤치마크</string>
+    <string name="library_benchmark_no_tokens">벤치마크에서 토큰이 생성되지 않았어요</string>
+    <string name="library_benchmark_generic_failure">실패</string>
+
+    <!-- Delete dialog -->
+    <string name="library_delete_dialog_title">모델을 삭제할까요?</string>
+    <string name="library_delete_dialog_text">이 기기에서 %1$s(%2$s)을(를) 제거할까요? 다시 사용하려면 재다운로드가 필요해요.</string>
+    <string name="library_dialog_cancel">취소</string>
+
+    <!-- Import status (ViewModel-emitted) -->
+    <string name="library_import_in_progress">가져오는 중…</string>
+    <string name="library_import_unsupported">지원하지 않는 파일: %1$s</string>
+    <string name="library_import_succeeded">%1$s 가져옴</string>
+    <string name="library_import_failed">가져오기 실패: %1$s</string>
+    <string name="library_import_error_unknown">알 수 없음</string>
+
+    <!-- Auto-cleanup report -->
+    <string name="library_auto_cleanup_report">자동 정리로 모델 %1$d개를 제거하여 %2$d GB 한도에 맞췄어요.</string>
+</resources>

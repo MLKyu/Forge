@@ -2,6 +2,7 @@ package com.mingeek.forge.feature.agents
 
 import android.content.ContentResolver
 import android.net.Uri
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mingeek.forge.agent.core.Agent
@@ -20,9 +21,9 @@ import com.mingeek.forge.data.storage.SettingsStore
 import com.mingeek.forge.runtime.registry.RuntimeRegistry
 import com.mingeek.forge.runtime.registry.SharedSessionRegistry
 import com.squareup.moshi.JsonAdapter
+import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -42,9 +43,14 @@ sealed interface RunStatus {
     data object Idle : RunStatus
     data object Running : RunStatus
     data object Done : RunStatus
-    data class Failed(val message: String) : RunStatus
+    /**
+     * @param messageRes localized user-facing reason
+     * @param details optional untranslated technical detail (exception message)
+     */
+    data class Failed(@StringRes val messageRes: Int, val details: String? = null) : RunStatus
 }
 
+@JsonClass(generateAdapter = true)
 data class StepConfig(
     val agentId: String,
     val modelId: String?,
@@ -69,19 +75,20 @@ data class StepRun(
     val toolCalls: List<StepToolCallRecord> = emptyList(),
 )
 
-enum class PipelinePreset(val displayName: String) {
-    SINGLE_SHOT("Single shot"),
-    PLAN_EXECUTE("Plan → Execute"),
-    PLAN_EXECUTE_CRITIC("Plan → Execute → Critic"),
+enum class PipelinePreset(@StringRes val displayNameRes: Int) {
+    SINGLE_SHOT(R.string.agents_preset_single_shot),
+    PLAN_EXECUTE(R.string.agents_preset_plan_execute),
+    PLAN_EXECUTE_CRITIC(R.string.agents_preset_plan_execute_critic),
 }
 
-enum class WorkflowMode(val displayName: String) {
-    PIPELINE("Pipeline"),
-    ROUTER("Router"),
-    DEBATE("Debate"),
-    PLAN_EXECUTE("Plan-Execute"),
+enum class WorkflowMode(@StringRes val displayNameRes: Int) {
+    PIPELINE(R.string.agents_mode_pipeline),
+    ROUTER(R.string.agents_mode_router),
+    DEBATE(R.string.agents_mode_debate),
+    PLAN_EXECUTE(R.string.agents_mode_plan_execute),
 }
 
+@JsonClass(generateAdapter = true)
 data class PlanExecuteConfig(
     val plannerAgentId: String = "planner",
     val plannerModelId: String? = null,
@@ -101,6 +108,7 @@ data class PlanExecuteConfig(
     val criticMaxTokens: Int = 512,
 )
 
+@JsonClass(generateAdapter = true)
 data class ParticipantConfig(
     val agentId: String,
     val modelId: String?,
@@ -108,6 +116,7 @@ data class ParticipantConfig(
     val maxTokens: Int = 384,
 )
 
+@JsonClass(generateAdapter = true)
 data class DebateConfig(
     val participants: List<ParticipantConfig> = listOf(
         ParticipantConfig("participant-pro", null,
@@ -124,6 +133,7 @@ data class DebateConfig(
     val moderatorMaxTokens: Int = 512,
 )
 
+@JsonClass(generateAdapter = true)
 data class RouteConfig(
     val agentId: String,
     val key: String,            // matched in router output (case-insensitive substring)
@@ -132,6 +142,7 @@ data class RouteConfig(
     val maxTokens: Int = 384,
 )
 
+@JsonClass(generateAdapter = true)
 data class RouterConfig(
     val routerAgentId: String = "router",
     val routerModelId: String? = null,
@@ -160,6 +171,7 @@ data class RouterConfig(
  * preset that targeted PIPELINE still leaves your last DEBATE setup intact
  * if you switch modes after applying it.
  */
+@JsonClass(generateAdapter = true)
 data class WorkflowPreset(
     val id: String,
     val name: String,
@@ -218,7 +230,7 @@ class AgentsViewModel(
 
     private var runJob: Job? = null
 
-    private val moshi: Moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+    private val moshi: Moshi = Moshi.Builder().build()
     private val stepsAdapter: JsonAdapter<List<StepConfig>> = moshi.adapter(
         Types.newParameterizedType(List::class.java, StepConfig::class.java),
     )
@@ -679,12 +691,12 @@ class AgentsViewModel(
             p to model
         }
         if (participantPairs.size != d.participants.size) {
-            _state.update { it.copy(status = RunStatus.Failed("Pick a model for every participant")) }
+            _state.update { it.copy(status = RunStatus.Failed(R.string.agents_error_pick_model_per_participant)) }
             return
         }
         val moderatorModel = if (d.moderatorEnabled) {
             current.installed.firstOrNull { it.id == d.moderatorModelId } ?: run {
-                _state.update { it.copy(status = RunStatus.Failed("Pick a moderator model or disable moderator")) }
+                _state.update { it.copy(status = RunStatus.Failed(R.string.agents_error_pick_moderator)) }
                 return
             }
         } else null
@@ -757,12 +769,12 @@ class AgentsViewModel(
         val plannerModel = current.installed.firstOrNull { it.id == pe.plannerModelId }
         val executorModel = current.installed.firstOrNull { it.id == pe.executorModelId }
         if (plannerModel == null || executorModel == null) {
-            _state.update { it.copy(status = RunStatus.Failed("Pick models for planner and executor")) }
+            _state.update { it.copy(status = RunStatus.Failed(R.string.agents_error_pick_planner_executor)) }
             return
         }
         val criticModel = if (pe.criticEnabled) {
             current.installed.firstOrNull { it.id == pe.criticModelId } ?: run {
-                _state.update { it.copy(status = RunStatus.Failed("Pick a critic model or disable it")) }
+                _state.update { it.copy(status = RunStatus.Failed(R.string.agents_error_pick_critic)) }
                 return
             }
         } else null
@@ -836,7 +848,7 @@ class AgentsViewModel(
             step to model
         }
         if (configured.size != current.steps.size) {
-            _state.update { it.copy(status = RunStatus.Failed("Pick a model for every step")) }
+            _state.update { it.copy(status = RunStatus.Failed(R.string.agents_error_pick_model_per_step)) }
             return
         }
 
@@ -876,7 +888,7 @@ class AgentsViewModel(
         val router = current.router
         val routerModel = current.installed.firstOrNull { it.id == router.routerModelId }
         if (routerModel == null) {
-            _state.update { it.copy(status = RunStatus.Failed("Pick a router model")) }
+            _state.update { it.copy(status = RunStatus.Failed(R.string.agents_error_pick_router)) }
             return
         }
         val routePairs = router.routes.mapNotNull { route ->
@@ -884,7 +896,7 @@ class AgentsViewModel(
             route to model
         }
         if (routePairs.size != router.routes.size) {
-            _state.update { it.copy(status = RunStatus.Failed("Pick a model for every route")) }
+            _state.update { it.copy(status = RunStatus.Failed(R.string.agents_error_pick_model_per_route)) }
             return
         }
 
@@ -950,7 +962,7 @@ class AgentsViewModel(
                 }
             } catch (t: Throwable) {
                 _state.update {
-                    it.copy(status = RunStatus.Failed(t.message ?: "workflow failed"))
+                    it.copy(status = RunStatus.Failed(R.string.agents_error_workflow_failed, t.message))
                 }
             } finally {
                 // Release every session this workflow loaded — including on
@@ -1014,7 +1026,7 @@ class AgentsViewModel(
                 viewModelScope.launch { recordRun(event.finalOutput) }
             }
             is OrchestratorEvent.Failed -> _state.update {
-                it.copy(status = RunStatus.Failed(event.message))
+                it.copy(status = RunStatus.Failed(R.string.agents_error_workflow_failed, event.message))
             }
         }
     }
@@ -1040,6 +1052,14 @@ class AgentsViewModel(
 
     private companion object {
         val DEFAULT_TOOLS: List<Tool> = listOf(CalculatorTool(), CurrentTimeTool(), WordCountTool())
+
+        /** English mode label for markdown export (universal export documents). */
+        fun WorkflowMode.exportName(): String = when (this) {
+            WorkflowMode.PIPELINE -> "Pipeline"
+            WorkflowMode.ROUTER -> "Router"
+            WorkflowMode.DEBATE -> "Debate"
+            WorkflowMode.PLAN_EXECUTE -> "Plan-Execute"
+        }
     }
 
     fun export(uri: Uri, resolver: ContentResolver) {
@@ -1049,7 +1069,7 @@ class AgentsViewModel(
                 runCatching {
                     resolver.openOutputStream(uri)?.use { out ->
                         out.bufferedWriter().use { w ->
-                            w.append("# Agents — ").append(snapshot.mode.displayName).append("\n\n")
+                            w.append("# Agents — ").append(snapshot.mode.exportName()).append("\n\n")
                             w.append("**User prompt:** ").append(snapshot.userPrompt.ifBlank { "(empty)" }).append("\n\n")
                             when (snapshot.mode) {
                                 WorkflowMode.PIPELINE -> writePipelineExport(w, snapshot)

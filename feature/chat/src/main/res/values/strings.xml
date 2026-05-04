@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Model picker -->
+    <string name="chat_select_a_model">Select a model</string>
+    <string name="chat_load_failed_prefix">Load failed: %1$s</string>
+    <string name="chat_no_models_installed">No models installed. Visit the Catalog tab to download GGUF models from HuggingFace.</string>
+    <string name="chat_load">Load</string>
+
+    <!-- Header actions -->
+    <string name="chat_chats">Chats</string>
+    <string name="chat_new">New</string>
+    <string name="chat_swap">Swap</string>
+    <string name="chat_export">Export</string>
+    <string name="chat_clear">Clear</string>
+    <string name="chat_unload">Unload</string>
+
+    <!-- Swap sheet -->
+    <string name="chat_swap_model_title">Swap model</string>
+    <string name="chat_swap_description">Conversation history is preserved; the new model takes over from the next turn.</string>
+
+    <!-- Past chats sheet -->
+    <string name="chat_past_chats_title">Past chats</string>
+    <string name="chat_past_chats_description">Tap to resume; the current conversation is auto-saved before switching.</string>
+    <string name="chat_message_count">%1$d message(s)</string>
+    <string name="chat_delete">Delete</string>
+
+    <!-- Composer -->
+    <string name="chat_type_a_message">Type a message…</string>
+    <string name="chat_stop">Stop</string>
+    <string name="chat_send">Send</string>
+
+    <!-- ViewModel-emitted user-facing strings -->
+    <string name="chat_load_no_runtime">No runtime supports %1$s</string>
+    <string name="chat_load_failed_generic">load failed</string>
+    <string name="chat_load_error_fallback">load error</string>
+    <string name="chat_switched_to">Switched to %1$s</string>
+    <string name="chat_swap_failed">Swap failed: %1$s</string>
+    <string name="chat_untitled_chat">Untitled chat</string>
+    <string name="chat_error_inline">\n\n[error: %1$s]</string>
+    <string name="chat_tool_loop_exceeded">\n\n[Tool loop exceeded %1$d iterations]</string>
+</resources>

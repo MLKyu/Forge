@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,7 +58,7 @@ fun ChatScreen(
             SessionState.Idle, is SessionState.Failed ->
                 ModelPicker(
                     installed = installed,
-                    failedMessage = (s as? SessionState.Failed)?.message,
+                    failed = s as? SessionState.Failed,
                     onSelect = viewModel::loadModel,
                     modifier = Modifier.fillMaxSize().padding(16.dp),
                 )
@@ -86,22 +87,27 @@ fun ChatScreen(
 @Composable
 private fun ModelPicker(
     installed: List<InstalledModel>,
-    failedMessage: String?,
+    failed: SessionState.Failed?,
     onSelect: (InstalledModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
-        Text("Select a model", style = MaterialTheme.typography.headlineSmall)
-        if (failedMessage != null) {
+        Text(stringResource(R.string.chat_select_a_model), style = MaterialTheme.typography.headlineSmall)
+        if (failed != null) {
+            val msg = if (failed.arg != null) {
+                stringResource(failed.messageRes, failed.arg)
+            } else {
+                stringResource(failed.messageRes)
+            }
             Text(
-                "Load failed: $failedMessage",
+                msg,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
         if (installed.isEmpty()) {
             Text(
-                "No models installed. Visit the Catalog tab to download GGUF models from HuggingFace.",
+                stringResource(R.string.chat_no_models_installed),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 16.dp),
             )
@@ -121,7 +127,7 @@ private fun ModelPicker(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Button(onClick = { onSelect(model) }, modifier = Modifier.padding(top = 8.dp)) {
-                            Text("Load")
+                            Text(stringResource(R.string.chat_load))
                         }
                     }
                 }
@@ -175,23 +181,27 @@ private fun ChatBody(
             TextButton(
                 onClick = { showConversationsSheet = true },
                 enabled = state.pastConversations.isNotEmpty(),
-            ) { Text("Chats") }
-            TextButton(onClick = onNewConversation) { Text("New") }
+            ) { Text(stringResource(R.string.chat_chats)) }
+            TextButton(onClick = onNewConversation) { Text(stringResource(R.string.chat_new)) }
             TextButton(onClick = { showSwapSheet = true }, enabled = installed.size > 1) {
-                Text("Swap")
+                Text(stringResource(R.string.chat_swap))
             }
-            TextButton(onClick = onExport, enabled = state.messages.isNotEmpty()) { Text("Export") }
-            TextButton(onClick = onClear, enabled = state.messages.isNotEmpty()) { Text("Clear") }
-            TextButton(onClick = onUnload) { Text("Unload") }
+            TextButton(onClick = onExport, enabled = state.messages.isNotEmpty()) {
+                Text(stringResource(R.string.chat_export))
+            }
+            TextButton(onClick = onClear, enabled = state.messages.isNotEmpty()) {
+                Text(stringResource(R.string.chat_clear))
+            }
+            TextButton(onClick = onUnload) { Text(stringResource(R.string.chat_unload)) }
         }
         HorizontalDivider()
 
         if (showSwapSheet) {
             ModalBottomSheet(onDismissRequest = { showSwapSheet = false }) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Swap model", fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.chat_swap_model_title), fontWeight = FontWeight.Medium)
                     Text(
-                        "Conversation history is preserved; the new model takes over from the next turn.",
+                        stringResource(R.string.chat_swap_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
@@ -228,9 +238,9 @@ private fun ChatBody(
         if (showConversationsSheet) {
             ModalBottomSheet(onDismissRequest = { showConversationsSheet = false }) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Past chats", fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.chat_past_chats_title), fontWeight = FontWeight.Medium)
                     Text(
-                        "Tap to resume; the current conversation is auto-saved before switching.",
+                        stringResource(R.string.chat_past_chats_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
@@ -254,14 +264,14 @@ private fun ChatBody(
                                     Column(Modifier.weight(1f)) {
                                         Text(conv.title, fontWeight = FontWeight.Medium)
                                         Text(
-                                            "${conv.messageCount} message(s)" +
+                                            stringResource(R.string.chat_message_count, conv.messageCount) +
                                                 (conv.lastModelId?.let { " · $it" } ?: ""),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
                                     TextButton(onClick = { onDeleteConversation(conv.id) }) {
-                                        Text("Delete")
+                                        Text(stringResource(R.string.chat_delete))
                                     }
                                 }
                             }
@@ -290,13 +300,15 @@ private fun ChatBody(
                 value = state.draft,
                 onValueChange = onDraftChanged,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Type a message…") },
+                placeholder = { Text(stringResource(R.string.chat_type_a_message)) },
                 enabled = !state.isGenerating,
             )
             if (state.isGenerating) {
-                OutlinedButton(onClick = onCancel) { Text("Stop") }
+                OutlinedButton(onClick = onCancel) { Text(stringResource(R.string.chat_stop)) }
             } else {
-                Button(onClick = onSend, enabled = state.draft.isNotBlank()) { Text("Send") }
+                Button(onClick = onSend, enabled = state.draft.isNotBlank()) {
+                    Text(stringResource(R.string.chat_send))
+                }
             }
         }
     }

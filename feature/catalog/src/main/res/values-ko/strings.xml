@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="catalog_title">카탈로그 — HuggingFace</string>
+    <string name="catalog_search_label">GGUF / MediaPipe 모델 검색</string>
+    <string name="catalog_search_button">검색</string>
+    <string name="catalog_search_button_loading">…</string>
+    <string name="catalog_sort_relevance">관련도</string>
+    <string name="catalog_sort_downloads">다운로드 수</string>
+    <string name="catalog_sort_recent">최신순</string>
+    <string name="catalog_format_all">전체</string>
+    <string name="catalog_error_prefix">오류: %1$s</string>
+    <string name="catalog_empty_no_results">결과가 없습니다. 다른 검색어나 정렬을 시도하세요.</string>
+    <string name="catalog_empty_filter">현재 필터와 일치하는 결과가 없습니다.</string>
+    <string name="catalog_loading_trending">인기 모델을 불러오는 중…</string>
+    <string name="catalog_family_label">계열: %1$s</string>
+    <string name="catalog_view_variants">변형 보기</string>
+    <string name="catalog_variants_header">변형</string>
+    <string name="catalog_no_gguf_variants">이 저장소에서 GGUF 변형을 찾을 수 없습니다.</string>
+    <string name="catalog_runtime_options">런타임 옵션:</string>
+    <string name="catalog_no_runtime_supports">%1$s 형식을 지원하는 등록된 런타임이 없습니다.</string>
+    <string name="catalog_non_commercial_warning">비상업용 라이선스 — 배포 전에 약관을 확인하세요</string>
+    <string name="catalog_failed_prefix">실패: %1$s</string>
+    <string name="catalog_retry">다시 시도</string>
+    <string name="catalog_download">다운로드</string>
+    <string name="catalog_progress_size">%1$s / %2$s</string>
+    <string name="catalog_installed">설치됨</string>
+    <string name="catalog_error_search_failed">검색에 실패했습니다</string>
+    <string name="catalog_error_detail_failed">상세 정보를 불러오지 못했습니다</string>
+    <string name="catalog_error_gated">이 모델은 HuggingFace 인증이 필요해요. 설정에서 HF 토큰을 등록한 뒤 huggingface.co에서 라이선스에 동의해주세요.</string>
+    <string name="catalog_error_not_found">저장소를 찾지 못했어요 — 이름이 바뀌었거나 삭제됐을 수 있어요.</string>
+    <string name="catalog_error_network">네트워크 오류 — 연결을 확인해주세요.</string>
+    <string name="catalog_queued">대기 중 — 다른 다운로드가 끝나면 시작돼요</string>
+    <string name="catalog_verifying">검증 중…</string>
+    <string name="catalog_pause">일시정지</string>
+    <string name="catalog_resume">재개</string>
+    <string name="catalog_cancel">취소</string>
+    <string name="catalog_dismiss">닫기</string>
+    <string name="catalog_paused_progress">%1$s / %2$s 에서 일시정지됨</string>
+</resources>

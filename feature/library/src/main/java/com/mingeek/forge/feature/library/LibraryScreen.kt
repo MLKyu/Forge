@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -33,6 +34,7 @@ import com.mingeek.forge.core.ui.components.DeviceFitBadge
 import com.mingeek.forge.core.ui.components.LicenseChip
 import com.mingeek.forge.data.storage.InstalledModel
 import com.mingeek.forge.domain.License
+import com.mingeek.forge.feature.library.R
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -76,39 +78,42 @@ fun LibraryScreen(
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "Library",
+                stringResource(R.string.library_title),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.weight(1f),
             )
             OutlinedButton(onClick = {
                 importLauncher.launch(arrayOf("application/octet-stream", "*/*"))
-            }) { Text("Import…") }
+            }) { Text(stringResource(R.string.library_import)) }
         }
         Text(
             when {
-                rows.isEmpty() -> "No models installed yet"
-                query.isBlank() -> "${rows.size} model(s) installed"
-                else -> "${filtered.size} of ${rows.size} match"
+                rows.isEmpty() -> stringResource(R.string.library_no_models_installed)
+                query.isBlank() -> stringResource(R.string.library_models_installed, rows.size)
+                else -> stringResource(R.string.library_filter_match_count, filtered.size, rows.size)
             },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(bottom = 8.dp),
         )
 
-        importStatus?.let { msg ->
+        importStatus?.let { status ->
             Text(
-                msg,
+                importStatusMessage(status),
                 style = MaterialTheme.typography.bodySmall,
-                color = if (msg.startsWith("Import failed") || msg.startsWith("Unsupported"))
-                    MaterialTheme.colorScheme.error
+                color = if (status.isError) MaterialTheme.colorScheme.error
                 else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 8.dp),
             )
         }
 
-        cleanupReport?.let { msg ->
+        cleanupReport?.let { report ->
             Text(
-                msg,
+                stringResource(
+                    R.string.library_auto_cleanup_report,
+                    report.deletedCount,
+                    report.budgetGb,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.tertiary,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -117,7 +122,7 @@ fun LibraryScreen(
 
         if (rows.isEmpty()) {
             Text(
-                "Browse the Catalog tab to download GGUF models from HuggingFace.",
+                stringResource(R.string.library_empty_hint),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
@@ -125,7 +130,7 @@ fun LibraryScreen(
                 value = query,
                 onValueChange = viewModel::setQuery,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                label = { Text("Search by name, file, or quantization") },
+                label = { Text(stringResource(R.string.library_search_label)) },
                 singleLine = true,
             )
 
@@ -137,14 +142,14 @@ fun LibraryScreen(
                     FilterChip(
                         selected = sort == option,
                         onClick = { viewModel.setSort(option) },
-                        label = { Text(option.label) },
+                        label = { Text(stringResource(option.labelRes)) },
                     )
                 }
             }
 
             if (filtered.isEmpty()) {
                 Text(
-                    "No matches.",
+                    stringResource(R.string.library_no_matches),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
@@ -165,20 +170,39 @@ fun LibraryScreen(
     pendingDelete?.let { model ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("Delete model?") },
+            title = { Text(stringResource(R.string.library_delete_dialog_title)) },
             text = {
-                Text("Remove ${model.displayName} (${formatSize(model.sizeBytes)}) from this device? Re-download is required to use it again.")
+                Text(
+                    stringResource(
+                        R.string.library_delete_dialog_text,
+                        model.displayName,
+                        formatSize(model.sizeBytes),
+                    ),
+                )
             },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.delete(model)
                     pendingDelete = null
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.library_item_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text("Cancel") }
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text(stringResource(R.string.library_dialog_cancel))
+                }
             },
         )
+    }
+}
+
+@Composable
+private fun importStatusMessage(status: ImportStatus): String = when (status) {
+    ImportStatus.InProgress -> stringResource(R.string.library_import_in_progress)
+    is ImportStatus.Unsupported -> stringResource(R.string.library_import_unsupported, status.fileName)
+    is ImportStatus.Succeeded -> stringResource(R.string.library_import_succeeded, status.fileName)
+    is ImportStatus.Failed -> {
+        val detail = status.detail.ifBlank { stringResource(R.string.library_import_error_unknown) }
+        stringResource(R.string.library_import_failed, detail)
     }
 }
 
@@ -197,20 +221,30 @@ private fun LibraryItemCard(
                     val title = if (row.pinned) "📌 ${model.displayName}" else model.displayName
                     Text(title, fontWeight = FontWeight.Medium)
                     Text(
-                        "${model.fileName} · ${model.quantization.name} · ${formatSize(model.sizeBytes)}",
+                        stringResource(
+                            R.string.library_item_meta,
+                            model.fileName,
+                            model.quantization.name,
+                            formatSize(model.sizeBytes),
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        "Runtime: ${model.recommendedRuntime}",
+                        stringResource(R.string.library_item_runtime, model.recommendedRuntime),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 TextButton(onClick = onTogglePin) {
-                    Text(if (row.pinned) "Unpin" else "Pin")
+                    Text(
+                        if (row.pinned) stringResource(R.string.library_item_unpin)
+                        else stringResource(R.string.library_item_pin),
+                    )
                 }
-                TextButton(onClick = onDelete) { Text("Delete") }
+                TextButton(onClick = onDelete) {
+                    Text(stringResource(R.string.library_item_delete))
+                }
             }
 
             Row(
@@ -228,14 +262,22 @@ private fun LibraryItemCard(
                 )
                 row.benchmark?.let { bench ->
                     Text(
-                        "%.1f tok/s · TTFT %dms".format(bench.tokensPerSecond, bench.firstTokenLatencyMs),
+                        stringResource(
+                            R.string.library_item_benchmark_summary,
+                            bench.tokensPerSecond,
+                            bench.firstTokenLatencyMs,
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }
             row.benchmark?.let { bench ->
                 Text(
-                    "Measured ${formatTime(bench.measuredAtEpochSec)} on ${bench.deviceModel}",
+                    stringResource(
+                        R.string.library_item_benchmark_measured,
+                        formatTime(bench.measuredAtEpochSec),
+                        bench.deviceModel,
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 2.dp),
@@ -250,20 +292,29 @@ private fun LibraryItemCard(
                 when (val s = row.benchmarkState) {
                     BenchmarkState.Running -> {
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Text("Benchmarking…", style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            stringResource(R.string.library_benchmark_running),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                     }
                     is BenchmarkState.Failed -> {
+                        val detail = s.detail?.takeIf { it.isNotBlank() } ?: stringResource(s.messageRes)
                         Text(
-                            "Benchmark failed: ${s.message}",
+                            stringResource(R.string.library_benchmark_failed, detail),
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.weight(1f),
                         )
-                        OutlinedButton(onClick = onBenchmark) { Text("Retry") }
+                        OutlinedButton(onClick = onBenchmark) {
+                            Text(stringResource(R.string.library_benchmark_retry))
+                        }
                     }
                     BenchmarkState.Idle -> {
                         OutlinedButton(onClick = onBenchmark) {
-                            Text(if (row.benchmark != null) "Re-benchmark" else "Benchmark")
+                            Text(
+                                if (row.benchmark != null) stringResource(R.string.library_benchmark_rerun)
+                                else stringResource(R.string.library_benchmark_start),
+                            )
                         }
                     }
                 }

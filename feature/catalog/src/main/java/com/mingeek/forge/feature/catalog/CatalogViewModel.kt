@@ -1,13 +1,16 @@
 package com.mingeek.forge.feature.catalog
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mingeek.forge.data.catalog.CatalogException
 import com.mingeek.forge.data.catalog.ModelCardDetail
 import com.mingeek.forge.data.catalog.ModelCatalogSource
 import com.mingeek.forge.data.catalog.RemoteFile
 import com.mingeek.forge.data.catalog.SearchQuery
-import com.mingeek.forge.data.download.DownloadProgress
-import com.mingeek.forge.data.download.ModelDownloader
+import com.mingeek.forge.data.download.DownloadQueue
+import com.mingeek.forge.data.download.DownloadRequest
+import com.mingeek.forge.data.download.DownloadState
 import com.mingeek.forge.core.hardware.DeviceFitScorer
 import com.mingeek.forge.data.storage.InstalledModel
 import com.mingeek.forge.data.storage.ModelStorage
@@ -19,9 +22,11 @@ import com.mingeek.forge.domain.Source
 import com.mingeek.forge.runtime.registry.RuntimeRegistry
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -32,7 +37,11 @@ data class CatalogUiState(
     val formatFilter: ModelFormat? = null,
     val isSearching: Boolean = false,
     val results: List<ModelCard> = emptyList(),
-    val error: String? = null,
+    /**
+     * Error to display. Either a raw exception message (preferred when
+     * available) or a fallback @StringRes for localized generic copy.
+     */
+    val error: CatalogError? = null,
     val selectedDetail: ModelCardDetail? = null,
     /**
      * Per-variant fit per runtime. Outer key is the file URL (matches the
@@ -42,15 +51,19 @@ data class CatalogUiState(
      */
     val variantRuntimeFits: Map<String, Map<RuntimeId, DeviceFitScore>> = emptyMap(),
     val isLoadingDetail: Boolean = false,
-    val downloads: Map<String, DownloadProgress> = emptyMap(),
 ) {
     val displayedResults: List<ModelCard>
         get() = if (formatFilter == null) results else results.filter { it.format == formatFilter }
 }
 
+sealed interface CatalogError {
+    data class Message(val text: String) : CatalogError
+    data class Res(@StringRes val resId: Int) : CatalogError
+}
+
 class CatalogViewModel(
     private val catalogSource: ModelCatalogSource,
-    private val downloader: ModelDownloader,
+    private val downloadQueue: DownloadQueue,
     private val storage: ModelStorage,
     private val fitScorer: DeviceFitScorer,
     private val runtimeRegistry: RuntimeRegistry,
@@ -59,8 +72,17 @@ class CatalogViewModel(
     private val _state = MutableStateFlow(CatalogUiState(sort = SearchQuery.Sort.DOWNLOADS))
     val state: StateFlow<CatalogUiState> = _state.asStateFlow()
 
+    /**
+     * Mirror of the process-wide [DownloadQueue] state, restricted to
+     * the file URL keys this catalog cares about. The screen subscribes
+     * to this directly — we don't fold it into [state] because the
+     * queue is shared across screens and we want any change there to
+     * propagate without copying.
+     */
+    val downloads: StateFlow<Map<String, DownloadState>> = downloadQueue.state
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
     private var searchJob: Job? = null
-    private val downloadJobs = mutableMapOf<String, Job>()
 
     init {
         // Surface popular models on first open so the screen isn't empty.
@@ -97,7 +119,9 @@ class CatalogViewModel(
                     _state.update { it.copy(isSearching = false, results = results) }
                 }
             } catch (t: Throwable) {
-                _state.update { it.copy(isSearching = false, error = t.message ?: "Search failed") }
+                val err = t.message?.let(CatalogError::Message)
+                    ?: CatalogError.Res(R.string.catalog_error_search_failed)
+                _state.update { it.copy(isSearching = false, error = err) }
             }
         }
     }
@@ -140,7 +164,14 @@ class CatalogViewModel(
                     )
                 }
             } catch (t: Throwable) {
-                _state.update { it.copy(isLoadingDetail = false, error = t.message ?: "Detail load failed") }
+                val err = when (t) {
+                    is CatalogException.Gated -> CatalogError.Res(R.string.catalog_error_gated)
+                    is CatalogException.NotFound -> CatalogError.Res(R.string.catalog_error_not_found)
+                    is CatalogException.Network -> CatalogError.Res(R.string.catalog_error_network)
+                    else -> t.message?.let(CatalogError::Message)
+                        ?: CatalogError.Res(R.string.catalog_error_detail_failed)
+                }
+                _state.update { it.copy(isLoadingDetail = false, error = err) }
             }
         }
     }
@@ -149,35 +180,53 @@ class CatalogViewModel(
         _state.update { it.copy(selectedDetail = null, variantRuntimeFits = emptyMap()) }
     }
 
+    /**
+     * Hand the download to the process-singleton queue. Safe to call
+     * from any screen — if the user navigates away, the queue keeps
+     * pumping bytes via the foreground service.
+     */
     fun downloadVariant(card: ModelCard, file: RemoteFile) {
-        val downloadKey = file.url
-        if (downloadJobs[downloadKey]?.isActive == true) return
-
-        downloadJobs[downloadKey] = viewModelScope.launch {
-            val target = storage.fileFor(card.id.substringBefore("::"), file.name)
-            downloader.download(file.url, target, file.sha256).collect { progress ->
-                _state.update { it.copy(downloads = it.downloads + (downloadKey to progress)) }
-                if (progress is DownloadProgress.Completed) {
-                    val record = InstalledModel(
-                        id = card.id,
-                        displayName = card.displayName,
-                        sourceId = catalogSource.sourceId,
-                        sourceRepoId = (card.source as? Source.HuggingFace)?.repoId,
-                        fileName = file.name,
-                        filePath = progress.file.absolutePath,
-                        sizeBytes = progress.file.length(),
-                        quantization = card.quantization,
-                        format = card.format,
-                        contextLength = card.contextLength,
-                        recommendedRuntime = card.recommendedRuntimes.firstOrNull()?.name
-                            ?: RuntimeId.LLAMA_CPP.name,
-                        installedAtEpochSec = Instant.now().epochSecond,
-                        licenseSpdxId = card.license.spdxId,
-                        commercialUseAllowed = card.license.commercialUseAllowed,
-                    )
-                    storage.register(record)
-                }
-            }
+        val target = storage.fileFor(card.id.substringBefore("::"), file.name)
+        // Capture the registration template at enqueue time. The
+        // closure runs on the queue's IO scope after byte verification,
+        // so it survives this ViewModel's death.
+        val storageRef = storage
+        val sourceId = catalogSource.sourceId
+        val onCompleted: suspend (java.io.File) -> Unit = { savedFile ->
+            val record = InstalledModel(
+                id = card.id,
+                displayName = card.displayName,
+                sourceId = sourceId,
+                sourceRepoId = (card.source as? Source.HuggingFace)?.repoId,
+                fileName = file.name,
+                filePath = savedFile.absolutePath,
+                sizeBytes = savedFile.length(),
+                quantization = card.quantization,
+                format = card.format,
+                contextLength = card.contextLength,
+                recommendedRuntime = card.recommendedRuntimes.firstOrNull()?.name
+                    ?: RuntimeId.LLAMA_CPP.name,
+                installedAtEpochSec = Instant.now().epochSecond,
+                licenseSpdxId = card.license.spdxId,
+                commercialUseAllowed = card.license.commercialUseAllowed,
+            )
+            storageRef.register(record)
         }
+        downloadQueue.enqueue(
+            DownloadRequest(
+                key = file.url,
+                url = file.url,
+                target = target,
+                expectedSha256 = file.sha256,
+                displayName = card.displayName,
+                sizeBytesHint = file.sizeBytes.takeIf { it > 0 },
+                onCompleted = onCompleted,
+            )
+        )
     }
+
+    fun pauseDownload(key: String) = downloadQueue.pause(key)
+    fun resumeDownload(key: String) = downloadQueue.resume(key)
+    fun cancelDownload(key: String) = downloadQueue.cancel(key)
+    fun dismissDownload(key: String) = downloadQueue.dismiss(key)
 }

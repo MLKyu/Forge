@@ -1,7 +1,9 @@
 package com.mingeek.forge.feature.chat
 
+import android.app.Application
 import android.content.ContentResolver
 import android.net.Uri
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mingeek.forge.data.storage.InstalledModel
@@ -23,9 +25,9 @@ import com.mingeek.forge.agent.tools.CurrentTimeTool
 import com.mingeek.forge.agent.tools.WordCountTool
 import com.mingeek.forge.runtime.registry.RuntimeRegistry
 import com.squareup.moshi.JsonAdapter
+import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -52,12 +54,13 @@ sealed interface SessionState {
         val model: InstalledModel,
         val template: ChatTemplate,
     ) : SessionState
-    data class Failed(val message: String) : SessionState
+    data class Failed(@StringRes val messageRes: Int, val arg: String? = null) : SessionState
 }
 
 private val EXPORT_TIME: DateTimeFormatter =
     DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault())
 
+@JsonClass(generateAdapter = true)
 data class ToolCallEntry(
     val toolName: String,
     val argumentsJson: String,
@@ -65,6 +68,7 @@ data class ToolCallEntry(
     val isError: Boolean,
 )
 
+@JsonClass(generateAdapter = true)
 data class ChatMessage(
     val id: String,
     val role: Role,
@@ -102,6 +106,7 @@ data class ChatUiState(
 )
 
 class ChatViewModel(
+    private val app: Application,
     private val storage: ModelStorage,
     private val registry: RuntimeRegistry,
     private val settingsStore: SettingsStore,
@@ -115,7 +120,7 @@ class ChatViewModel(
 
     private var generationJob: Job? = null
 
-    private val moshi: Moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+    private val moshi: Moshi = Moshi.Builder().build()
     private val messagesAdapter: JsonAdapter<List<ChatMessage>> = moshi.adapter(
         Types.newParameterizedType(List::class.java, ChatMessage::class.java),
     )
@@ -142,7 +147,8 @@ class ChatViewModel(
 
     private suspend fun persistConversation(id: String, msgs: List<ChatMessage>, modelId: String?) {
         val firstUserMsg = msgs.firstOrNull { it.role == ChatMessage.Role.USER }?.content
-        val title = firstUserMsg?.take(60)?.ifBlank { null } ?: "Untitled chat"
+        val title = firstUserMsg?.take(60)?.ifBlank { null }
+            ?: app.getString(R.string.chat_untitled_chat)
         chatHistory.put(
             MemoryEntry(
                 id = "chat:$id",
@@ -164,7 +170,7 @@ class ChatViewModel(
         val mapped = entries.map { entry ->
             PastConversation(
                 id = entry.id.removePrefix("chat:"),
-                title = entry.metadata["title"] ?: "Untitled chat",
+                title = entry.metadata["title"] ?: app.getString(R.string.chat_untitled_chat),
                 messageCount = entry.metadata["count"]?.toIntOrNull() ?: 0,
                 updatedAtEpochSec = entry.createdAtEpochSec,
                 lastModelId = entry.metadata["modelId"],
@@ -256,7 +262,7 @@ class ChatViewModel(
             val note = ChatMessage(
                 id = UUID.randomUUID().toString(),
                 role = ChatMessage.Role.SYSTEM,
-                content = "Switched to ${model.displayName}",
+                content = app.getString(R.string.chat_switched_to, model.displayName),
                 timestampMs = System.currentTimeMillis(),
             )
             _state.update {
@@ -282,7 +288,14 @@ class ChatViewModel(
             .getOrDefault(RuntimeId.LLAMA_CPP)
         val runtime = registry.pick(model.format, runtimeId)
         if (runtime == null) {
-            _state.update { it.copy(sessionState = SessionState.Failed("No runtime supports ${model.format}")) }
+            _state.update {
+                it.copy(
+                    sessionState = SessionState.Failed(
+                        R.string.chat_load_no_runtime,
+                        model.format.toString(),
+                    ),
+                )
+            }
             return
         }
 
@@ -308,14 +321,23 @@ class ChatViewModel(
         } catch (t: Throwable) {
             // On failure during a swap we still keep the preserved messages;
             // user can retry with a different model.
-            _state.update { it.copy(sessionState = SessionState.Failed(t.message ?: "load failed")) }
+            val reason = t.message ?: app.getString(R.string.chat_load_failed_generic)
+            _state.update {
+                it.copy(
+                    sessionState = SessionState.Failed(
+                        R.string.chat_load_failed_prefix,
+                        reason,
+                    ),
+                )
+            }
             if (preserveMessages) {
                 // Fold an error note in so the system marker isn't dangling.
+                val swapReason = t.message ?: app.getString(R.string.chat_load_error_fallback)
                 _state.update {
                     it.copy(messages = it.messages + ChatMessage(
                         id = UUID.randomUUID().toString(),
                         role = ChatMessage.Role.SYSTEM,
-                        content = "Swap failed: ${t.message ?: "load error"}",
+                        content = app.getString(R.string.chat_swap_failed, swapReason),
                     ))
                 }
             }
@@ -407,7 +429,10 @@ class ChatViewModel(
                     assistantMsgId = assistantMsg.id,
                 )
             } catch (t: Throwable) {
-                appendToAssistant(assistantMsg.id, "\n\n[error: ${t.message}]")
+                appendToAssistant(
+                    assistantMsg.id,
+                    app.getString(R.string.chat_error_inline, t.message ?: ""),
+                )
                 finalizeAssistant(assistantMsg.id, null)
             }
         }
@@ -502,7 +527,7 @@ class ChatViewModel(
             if (iteration >= maxIterations) {
                 appendToAssistant(
                     assistantMsgId,
-                    "\n\n[Tool loop exceeded $maxIterations iterations]",
+                    app.getString(R.string.chat_tool_loop_exceeded, maxIterations),
                 )
                 finalizeAssistant(assistantMsgId, lastUsage)
                 return

@@ -2,6 +2,7 @@ package com.mingeek.forge.feature.compare
 
 import android.content.ContentResolver
 import android.net.Uri
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mingeek.forge.data.storage.InstalledModel
@@ -29,7 +30,16 @@ sealed interface PaneStatus {
     data object Loading : PaneStatus
     data object Generating : PaneStatus
     data object Done : PaneStatus
-    data class Failed(val message: String) : PaneStatus
+    /**
+     * Pane failure. If [messageRes] is set, it is preferred over [message] for display
+     * (and may be formatted with [formatArg]). [message] is kept as a fallback for
+     * raw throwable messages that have no localized form.
+     */
+    data class Failed(
+        val message: String,
+        @StringRes val messageRes: Int? = null,
+        val formatArg: String? = null,
+    ) : PaneStatus
 }
 
 data class ComparePane(
@@ -118,7 +128,15 @@ class CompareViewModel(
             .getOrDefault(RuntimeId.LLAMA_CPP)
         val runtime = registry.pick(model.format, runtimeId)
         if (runtime == null) {
-            updatePane(model.id) { it.copy(status = PaneStatus.Failed("No runtime supports ${model.format}")) }
+            updatePane(model.id) {
+                it.copy(
+                    status = PaneStatus.Failed(
+                        message = "No runtime supports ${model.format}",
+                        messageRes = R.string.compare_no_runtime_supports_format,
+                        formatArg = model.format.toString(),
+                    ),
+                )
+            }
             return
         }
 

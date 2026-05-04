@@ -6,7 +6,6 @@ import android.provider.OpenableColumns
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,9 +22,7 @@ class ModelStorage(private val context: Context) {
     private val indexFile: File = File(rootDir, "index.json")
     private val mutex = Mutex()
 
-    private val moshi: Moshi = Moshi.Builder()
-        .add(KotlinJsonAdapterFactory())
-        .build()
+    private val moshi: Moshi = Moshi.Builder().build()
 
     private val listAdapter: JsonAdapter<List<InstalledModel>> =
         moshi.adapter(Types.newParameterizedType(List::class.java, InstalledModel::class.java))

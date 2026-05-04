@@ -22,9 +22,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.mingeek.forge.core.ui.components.AutoShrinkText
 import com.mingeek.forge.feature.settings.SettingsRoute
 import com.mingeek.forge.navigation.TopLevelDestination
 import com.mingeek.forge.navigation.ForgeNavHost
@@ -52,11 +55,13 @@ private fun ForgeApp() {
     val currentRoute = backStackEntry?.destination?.route
     val isSettings = currentRoute == SettingsRoute
 
+    val activeDest = TopLevelDestination.entries.firstOrNull { dest ->
+        dest.route == currentRoute || currentRoute?.startsWith("${dest.route}?") == true
+    }
     val title = when {
-        isSettings -> "Settings"
-        else -> TopLevelDestination.entries.firstOrNull { dest ->
-            dest.route == currentRoute || currentRoute?.startsWith("${dest.route}?") == true
-        }?.label ?: "Forge"
+        isSettings -> stringResource(R.string.title_settings)
+        activeDest != null -> stringResource(activeDest.labelRes)
+        else -> stringResource(R.string.app_name)
     }
 
     Scaffold(
@@ -67,7 +72,10 @@ private fun ForgeApp() {
                 navigationIcon = {
                     if (isSettings) {
                         IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.cd_back),
+                            )
                         }
                     }
                 },
@@ -78,7 +86,10 @@ private fun ForgeApp() {
                                 launchSingleTop = true
                             }
                         }) {
-                            Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                            Icon(
+                                Icons.Filled.Settings,
+                                contentDescription = stringResource(R.string.cd_settings),
+                            )
                         }
                     }
                 },
@@ -94,21 +105,37 @@ private fun ForgeApp() {
                                 route.route == dest.route ||
                                     route.route?.startsWith("${dest.route}?") == true
                             } == true
+                        val label = stringResource(dest.labelRes)
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
-                                if (currentRoute != dest.route) {
-                                    navController.navigate(dest.route) {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            saveState = true
+                                val onTab = currentRoute == dest.route ||
+                                    currentRoute?.startsWith("${dest.route}?") == true
+                                if (!onTab) {
+                                    // If the tab destination is already on the back stack,
+                                    // pop straight to it (preserving its state). This fixes
+                                    // the case where a child screen pushed by another tab
+                                    // (e.g. Discover -> Catalog?modelId=…) wouldn't return
+                                    // to Discover via the BNB tap because navigate(start)
+                                    // + launchSingleTop short-circuits.
+                                    val popped = navController.popBackStack(
+                                        route = dest.route,
+                                        inclusive = false,
+                                        saveState = true,
+                                    )
+                                    if (!popped) {
+                                        navController.navigate(dest.route) {
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
                                         }
-                                        launchSingleTop = true
-                                        restoreState = true
                                     }
                                 }
                             },
-                            icon = { Icon(dest.icon, contentDescription = dest.label) },
-                            label = { Text(dest.label) },
+                            icon = { Icon(dest.icon, contentDescription = label) },
+                            label = { AutoShrinkText(label) },
                         )
                     }
                 }

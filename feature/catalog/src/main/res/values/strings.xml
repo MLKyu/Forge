@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="catalog_title">Catalog — HuggingFace</string>
+    <string name="catalog_search_label">Search GGUF / MediaPipe models</string>
+    <string name="catalog_search_button">Go</string>
+    <string name="catalog_search_button_loading">…</string>
+    <string name="catalog_sort_relevance">Relevance</string>
+    <string name="catalog_sort_downloads">Downloads</string>
+    <string name="catalog_sort_recent">Recent</string>
+    <string name="catalog_format_all">All</string>
+    <string name="catalog_error_prefix">Error: %1$s</string>
+    <string name="catalog_empty_no_results">No results. Try a different query or sort.</string>
+    <string name="catalog_empty_filter">No results match the current filter.</string>
+    <string name="catalog_loading_trending">Loading trending models…</string>
+    <string name="catalog_family_label">Family: %1$s</string>
+    <string name="catalog_view_variants">View variants</string>
+    <string name="catalog_variants_header">Variants</string>
+    <string name="catalog_no_gguf_variants">No GGUF variants found in this repo.</string>
+    <string name="catalog_runtime_options">Runtime options:</string>
+    <string name="catalog_no_runtime_supports">No registered runtime supports %1$s.</string>
+    <string name="catalog_non_commercial_warning">Non-commercial license — check terms before deploying</string>
+    <string name="catalog_failed_prefix">Failed: %1$s</string>
+    <string name="catalog_retry">Retry</string>
+    <string name="catalog_download">Download</string>
+    <string name="catalog_progress_size">%1$s / %2$s</string>
+    <string name="catalog_installed">Installed</string>
+    <string name="catalog_error_search_failed">Search failed</string>
+    <string name="catalog_error_detail_failed">Detail load failed</string>
+    <string name="catalog_error_gated">This model needs HuggingFace auth. Set an HF token in Settings, then accept the model\'s license on huggingface.co.</string>
+    <string name="catalog_error_not_found">Repo not found — it may have been renamed or removed.</string>
+    <string name="catalog_error_network">Network error — check your connection.</string>
+    <string name="catalog_queued">Queued — waiting for a slot</string>
+    <string name="catalog_verifying">Verifying…</string>
+    <string name="catalog_pause">Pause</string>
+    <string name="catalog_resume">Resume</string>
+    <string name="catalog_cancel">Cancel</string>
+    <string name="catalog_dismiss">Dismiss</string>
+    <string name="catalog_paused_progress">Paused at %1$s / %2$s</string>
+</resources>

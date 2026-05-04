@@ -23,5 +23,5 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":agent:memory"))
     implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.moshi.kotlin)
+    implementation(libs.moshi)
 }

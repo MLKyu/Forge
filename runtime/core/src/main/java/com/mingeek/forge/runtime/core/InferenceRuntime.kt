@@ -2,6 +2,7 @@ package com.mingeek.forge.runtime.core
 
 import com.mingeek.forge.domain.ModelFormat
 import com.mingeek.forge.domain.RuntimeId
+import com.squareup.moshi.JsonClass
 import kotlinx.coroutines.flow.Flow
 
 @JvmInline
@@ -56,6 +57,7 @@ sealed interface Token {
 
     enum class FinishReason { STOP, MAX_TOKENS, STOP_SEQUENCE, ERROR, CANCELLED }
 
+    @JsonClass(generateAdapter = true)
     data class TokenUsage(
         val promptTokens: Int,
         val completionTokens: Int,

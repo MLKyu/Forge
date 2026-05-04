@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Workflow modes (enum displayName) -->
+    <string name="agents_mode_pipeline">Pipeline</string>
+    <string name="agents_mode_router">Router</string>
+    <string name="agents_mode_debate">Debate</string>
+    <string name="agents_mode_plan_execute">Plan-Execute</string>
+
+    <!-- Pipeline preset displayName -->
+    <string name="agents_preset_single_shot">Single shot</string>
+    <string name="agents_preset_plan_execute">Plan → Execute</string>
+    <string name="agents_preset_plan_execute_critic">Plan → Execute → Critic</string>
+
+    <!-- Header titles per mode -->
+    <string name="agents_header_pipeline_one">Agents · Pipeline (%1$d step)</string>
+    <string name="agents_header_pipeline_many">Agents · Pipeline (%1$d steps)</string>
+    <string name="agents_header_router_one">Agents · Router (%1$d route)</string>
+    <string name="agents_header_router_many">Agents · Router (%1$d routes)</string>
+    <string name="agents_header_debate">Agents · Debate (%1$d participants)</string>
+    <string name="agents_header_debate_with_moderator">Agents · Debate (%1$d participants + moderator)</string>
+    <string name="agents_header_plan_execute">Agents · Plan-Execute</string>
+    <string name="agents_header_plan_execute_with_critic">Agents · Plan-Execute + critic</string>
+
+    <!-- Subtitles per mode -->
+    <string name="agents_subtitle_pipeline">Each step\'s output flows to the next via {input}.</string>
+    <string name="agents_subtitle_router">Router classifies the input; the matching route handles the response.</string>
+    <string name="agents_subtitle_debate">Each participant answers; the moderator (if enabled) synthesizes a final answer.</string>
+    <string name="agents_subtitle_plan_execute">Planner outlines a plan; executor carries it out; optional critic refines the answer.</string>
+
+    <!-- Empty state -->
+    <string name="agents_no_models_installed">No models installed. Download some in Catalog first.</string>
+
+    <!-- Mode / presets section labels -->
+    <string name="agents_label_mode">Mode</string>
+    <string name="agents_label_presets">Presets</string>
+
+    <!-- Add buttons -->
+    <string name="agents_add_step">+ Add step</string>
+    <string name="agents_add_route">+ Add route</string>
+    <string name="agents_add_participant">+ Add participant</string>
+
+    <!-- User prompt card -->
+    <string name="agents_user_prompt">User prompt</string>
+    <string name="agents_button_stop">Stop</string>
+    <string name="agents_button_run_pipeline">Run pipeline</string>
+    <string name="agents_button_run_router">Run router</string>
+    <string name="agents_button_run_debate">Run debate</string>
+    <string name="agents_button_run_plan_execute">Run plan-execute</string>
+    <string name="agents_button_copy">Copy</string>
+    <string name="agents_button_export">Export</string>
+
+    <!-- Output section -->
+    <string name="agents_output">Output</string>
+    <string name="agents_router_fallback_warning">⚠ Router output didn\'t match any route key — fell back to first route (%1$s).</string>
+
+    <!-- Step card -->
+    <string name="agents_step_index">Step %1$d</string>
+    <string name="agents_move_up">↑</string>
+    <string name="agents_move_down">↓</string>
+    <string name="agents_remove">Remove</string>
+    <string name="agents_pick_a_model">Pick a model</string>
+    <string name="agents_check_mark_prefix">✓ </string>
+    <string name="agents_label_system_prompt">System prompt</string>
+    <string name="agents_label_prompt_template">Prompt template ({input} = previous step output)</string>
+    <string name="agents_max_output_tokens">Max output tokens: %1$d</string>
+
+    <!-- Router card -->
+    <string name="agents_router_title">Router</string>
+    <string name="agents_router_description">Picks a route by matching its key (case-insensitive substring) in the router output.</string>
+    <string name="agents_label_router_system_prompt">Router system prompt (should output a route key)</string>
+
+    <!-- Route card -->
+    <string name="agents_route_title">Route</string>
+    <string name="agents_label_match_key">Match key</string>
+    <string name="agents_label_route_system_prompt">Route system prompt</string>
+
+    <!-- Participant card -->
+    <string name="agents_participant_index">Participant %1$d</string>
+    <string name="agents_label_stance_system_prompt">Stance / system prompt</string>
+
+    <!-- Debate rounds -->
+    <string name="agents_rounds_title">Rounds</string>
+    <string name="agents_rounds_description">Round 1: each participant answers the user. Rounds 2+: every participant sees the others\' previous answers and refines their own.</string>
+    <string name="agents_max_rounds">Max rounds: %1$d</string>
+
+    <!-- Moderator -->
+    <string name="agents_moderator_title">Moderator</string>
+    <string name="agents_label_moderator_system_prompt">Moderator system prompt</string>
+    <string name="agents_moderator_disabled_note">Without a moderator, participants\' answers are concatenated as the final result.</string>
+
+    <!-- Plan-Execute card -->
+    <string name="agents_planner_title">Planner</string>
+    <string name="agents_executor_title">Executor</string>
+    <string name="agents_critic_optional_title">Critic (optional)</string>
+    <string name="agents_label_planner_system_prompt">Planner system prompt</string>
+    <string name="agents_label_executor_system_prompt">Executor system prompt</string>
+    <string name="agents_label_critic_system_prompt">Critic system prompt</string>
+    <string name="agents_critic_disabled_note">Without a critic the executor\'s draft is the final answer.</string>
+
+    <!-- Workflow presets bar -->
+    <string name="agents_saved_presets_title">Saved presets (%1$d)</string>
+    <string name="agents_save_current">Save current</string>
+    <string name="agents_presets_empty">Save the current mode + config under a name and reapply it later.</string>
+    <string name="agents_preset_label">%1$s · %2$s</string>
+    <string name="agents_delete">Delete</string>
+    <string name="agents_dialog_save_preset">Save preset</string>
+    <string name="agents_dialog_label_name">Name</string>
+    <string name="agents_button_save">Save</string>
+    <string name="agents_button_cancel">Cancel</string>
+
+    <!-- Past runs -->
+    <string name="agents_recent_runs_title">Recent runs (%1$d)</string>
+    <string name="agents_show">Show</string>
+    <string name="agents_hide">Hide</string>
+    <string name="agents_past_run_header">%1$s · %2$s</string>
+    <string name="agents_past_run_prompt_short">Prompt: %1$s</string>
+    <string name="agents_past_run_prompt_short_truncated">Prompt: %1$s…</string>
+
+    <!-- Notices -->
+    <string name="agents_deleted_model_notice">⚠ Saved model no longer installed — pick another below.</string>
+
+    <!-- Step labels (friendlyStepLabel) -->
+    <string name="agents_step_label_router">Router</string>
+    <string name="agents_step_label_routed">Routed</string>
+    <string name="agents_step_label_moderator">Moderator</string>
+    <string name="agents_step_label_step">Step %1$d</string>
+    <string name="agents_step_label_participant">Participant %1$d</string>
+    <string name="agents_step_label_round_participant">Round %1$d — Participant %2$d</string>
+
+    <!-- Run card status -->
+    <string name="agents_run_done">done</string>
+    <string name="agents_run_ellipsis">…</string>
+    <string name="agents_tool_args">args: %1$s</string>
+    <string name="agents_tool_result">result: %1$s</string>
+    <string name="agents_tool_status_error"> · error</string>
+    <string name="agents_tool_status_running"> · running</string>
+    <string name="agents_tool_icon_prefix">🔧 </string>
+
+    <!-- Status line -->
+    <string name="agents_status_running">Running…</string>
+    <string name="agents_status_done">Pipeline complete.</string>
+    <string name="agents_status_failed">Failed: %1$s</string>
+
+    <!-- Failure messages (RunStatus.Failed) -->
+    <string name="agents_error_pick_model_per_step">Pick a model for every step</string>
+    <string name="agents_error_pick_model_per_participant">Pick a model for every participant</string>
+    <string name="agents_error_pick_moderator">Pick a moderator model or disable moderator</string>
+    <string name="agents_error_pick_planner_executor">Pick models for planner and executor</string>
+    <string name="agents_error_pick_critic">Pick a critic model or disable it</string>
+    <string name="agents_error_pick_router">Pick a router model</string>
+    <string name="agents_error_pick_model_per_route">Pick a model for every route</string>
+    <string name="agents_error_workflow_failed">workflow failed</string>
+</resources>

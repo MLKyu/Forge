@@ -1,11 +1,14 @@
 package com.mingeek.forge.agent.memory
 
+import com.squareup.moshi.JsonClass
+
 /**
  * One unit of remembered text. Implementations of [MemoryStore] decide how
  * entries are persisted, indexed, and ranked — this type is intentionally
  * minimal so we can swap a keyword-based store for an embedding-based one
  * without touching call sites.
  */
+@JsonClass(generateAdapter = true)
 data class MemoryEntry(
     /**
      * Caller-assigned id. Stable across put/get/remove. The store does not
