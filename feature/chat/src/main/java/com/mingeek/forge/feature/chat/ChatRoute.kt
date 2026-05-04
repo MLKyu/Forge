@@ -12,6 +12,7 @@ import com.mingeek.forge.agent.memory.MemoryStore
 import com.mingeek.forge.data.storage.ModelStorage
 import com.mingeek.forge.data.storage.SettingsStore
 import com.mingeek.forge.runtime.registry.RuntimeRegistry
+import kotlinx.coroutines.CoroutineScope
 
 const val ChatRoute = "chat"
 
@@ -20,6 +21,7 @@ fun NavGraphBuilder.chatScreen(
     registry: RuntimeRegistry,
     settingsStore: SettingsStore,
     chatHistory: MemoryStore,
+    appScope: CoroutineScope,
     modifier: Modifier = Modifier,
 ) {
     composable(ChatRoute) {
@@ -27,7 +29,14 @@ fun NavGraphBuilder.chatScreen(
         val viewModel: ChatViewModel = viewModel(
             factory = viewModelFactory {
                 initializer {
-                    ChatViewModel(application, storage, registry, settingsStore, chatHistory)
+                    ChatViewModel(
+                        app = application,
+                        storage = storage,
+                        registry = registry,
+                        settingsStore = settingsStore,
+                        chatHistory = chatHistory,
+                        appScope = appScope,
+                    )
                 }
             }
         )

@@ -6,7 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
@@ -145,7 +144,7 @@ private fun ForgeApp() {
         ForgeNavHost(
             navController = navController,
             container = app.container,
-            modifier = Modifier.padding(padding),
+            paddingValues = padding,
         )
     }
 }

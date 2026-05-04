@@ -5,6 +5,14 @@
     <string name="chat_load_failed_prefix">불러오기 실패: %1$s</string>
     <string name="chat_no_models_installed">설치된 모델이 없어요. 카탈로그 탭에서 HuggingFace의 GGUF 모델을 다운로드하세요.</string>
     <string name="chat_load">불러오기</string>
+    <string name="chat_start_new">새 채팅 시작</string>
+    <string name="chat_history_count">대화 %1$d개</string>
+    <string name="chat_history_open">열기</string>
+    <string name="chat_last_used">최근 %1$s</string>
+    <string name="chat_never_used">사용 기록 없음</string>
+    <string name="chat_relative_today">오늘 %1$s</string>
+    <string name="chat_relative_yesterday">어제 %1$s</string>
+    <string name="chat_relative_days">%1$d일 전</string>
 
     <!-- Header actions -->
     <string name="chat_chats">대화 목록</string>
@@ -13,6 +21,7 @@
     <string name="chat_export">내보내기</string>
     <string name="chat_clear">지우기</string>
     <string name="chat_unload">언로드</string>
+    <string name="chat_more">더보기</string>
 
     <!-- Swap sheet -->
     <string name="chat_swap_model_title">모델 변경</string>
