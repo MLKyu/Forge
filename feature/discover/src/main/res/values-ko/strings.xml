@@ -12,6 +12,8 @@
 
     <!-- Curator bar -->
     <string name="discover_curator_title">AI 큐레이터</string>
+    <string name="discover_curator_help_title">AI 큐레이터가 뭐예요?</string>
+    <string name="discover_curator_help_text">내 폰에 이미 설치된 모델 중 하나를 골라두면, 둘러보기에 새로 뜬 모델을 1~5점으로 평가하고 한 줄 이유를 적어줘요. 평가는 전부 디바이스 안에서 돌아서 데이터가 외부로 나가지 않아요. 작은 큐레이터 모델은 빠르고, 큰 모델은 더 정교한 평가를 해줍니다.</string>
     <string name="discover_curator_running">큐레이팅 중 (%1$d)…</string>
     <string name="discover_curator_run">실행</string>
     <string name="discover_curator_clear">지우기</string>

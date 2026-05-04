@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
@@ -31,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mingeek.forge.core.ui.components.DeviceFitBadge
+import com.mingeek.forge.core.ui.components.InfoTooltip
 import com.mingeek.forge.data.discovery.DiscoveryRepository
 import com.mingeek.forge.data.discovery.RecommendedModel
 import com.mingeek.forge.data.storage.InstalledModel
@@ -171,11 +173,20 @@ private fun CuratorBar(
     Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.discover_curator_title),
-                    fontWeight = FontWeight.Medium,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f),
-                )
+                ) {
+                    Text(
+                        stringResource(R.string.discover_curator_title),
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    InfoTooltip(
+                        text = stringResource(R.string.discover_curator_help_text),
+                        title = stringResource(R.string.discover_curator_help_title),
+                    )
+                }
                 TextButton(
                     onClick = onRunCurator,
                     enabled = curatorModelId != null && !isCurating,

@@ -4,4 +4,5 @@
     <string name="ui_device_fit_red">부적합</string>
     <string name="ui_device_fit_unsupported">미지원</string>
     <string name="ui_device_fit_with_tps">%1$s · 초당 ~%2$.0f토큰</string>
+    <string name="ui_info_tooltip_cd">도움말</string>
 </resources>

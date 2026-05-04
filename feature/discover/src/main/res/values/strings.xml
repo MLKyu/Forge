@@ -12,6 +12,8 @@
 
     <!-- Curator bar -->
     <string name="discover_curator_title">AI Curator</string>
+    <string name="discover_curator_help_title">What is the AI Curator?</string>
+    <string name="discover_curator_help_text">Pick one of your installed on-device models and it will rate each newly discovered model 1–5 with a one-line reason. Everything runs on your phone — no data leaves the device. Smaller curator models are quick; larger ones give more nuanced ratings.</string>
     <string name="discover_curator_running">Curating (%1$d)…</string>
     <string name="discover_curator_run">Run</string>
     <string name="discover_curator_clear">Clear</string>
