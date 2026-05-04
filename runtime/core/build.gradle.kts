@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.google.devtools.ksp)
 }
 
 java {
@@ -15,4 +16,6 @@ dependencies {
     implementation(project(":domain"))
     implementation(project(":core:common"))
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.moshi)
+    ksp(libs.moshi.kotlin.codegen)
 }

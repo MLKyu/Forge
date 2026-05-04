@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Header -->
+    <string name="discover_title">Discover</string>
+    <string name="discover_refresh">Refresh</string>
+    <string name="discover_error_prefix">Error: %1$s</string>
+
+    <!-- Sections -->
+    <string name="discover_section_for_you">For you</string>
+    <string name="discover_section_curated_collections">Curated collections</string>
+    <string name="discover_section_curated_subtitle">All downloadable without an account or HF token</string>
+
+    <!-- Curator bar -->
+    <string name="discover_curator_title">AI Curator</string>
+    <string name="discover_curator_running">Curating (%1$d)…</string>
+    <string name="discover_curator_run">Run</string>
+    <string name="discover_curator_clear">Clear</string>
+    <string name="discover_curator_no_models">Install at least one model to enable curation.</string>
+    <string name="discover_curator_pick_hint">Pick which installed model rates the discovered cards.</string>
+
+    <!-- Recommendation card -->
+    <string name="discover_match_percent">Match: %1$s%%</string>
+    <string name="discover_reason_bullet">• %1$s</string>
+
+    <!-- Feed -->
+    <string name="discover_feed_failed">Failed: %1$s</string>
+    <string name="discover_feed_empty">No items.</string>
+
+    <!-- Curation labels -->
+    <string name="discover_curation_score">★ %1$s/5</string>
+    <string name="discover_curation_score_unknown">★ ?</string>
+
+    <!-- ViewModel-emitted user-facing errors -->
+    <string name="discover_error_pick_curator_first">Pick a curator model first</string>
+    <string name="discover_error_curator_uninstalled">Curator model is no longer installed</string>
+    <string name="discover_error_fetch_failed">Fetch failed</string>
+    <string name="discover_error_curation_failed">Curation failed</string>
+    <string name="discover_error_with_detail">%1$s: %2$s</string>
+
+    <!-- Curated entry chip / card -->
+    <string name="discover_collection_size_unknown">Size: —</string>
+    <string name="discover_collection_size_gb">~%1$.1f GB</string>
+    <string name="discover_collection_size_mb">~%1$.0f MB</string>
+    <string name="discover_collection_fit_green">Good fit</string>
+    <string name="discover_collection_fit_yellow">Tight fit</string>
+    <string name="discover_collection_fit_red">Won\'t fit on this device</string>
+    <string name="discover_collection_fit_unknown">Fit unknown</string>
+    <string name="discover_collection_gated">Needs HF token</string>
+    <string name="discover_collection_authed">✓ Authenticated</string>
+</resources>

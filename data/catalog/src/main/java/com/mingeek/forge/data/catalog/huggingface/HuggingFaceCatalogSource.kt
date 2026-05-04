@@ -1,5 +1,6 @@
 package com.mingeek.forge.data.catalog.huggingface
 
+import com.mingeek.forge.data.catalog.CatalogException
 import com.mingeek.forge.data.catalog.ModelCardDetail
 import com.mingeek.forge.data.catalog.ModelCatalogSource
 import com.mingeek.forge.data.catalog.RemoteFile
@@ -16,6 +17,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import retrofit2.HttpException
+import java.io.IOException
 
 class HuggingFaceCatalogSource(
     private val api: HuggingFaceApi,
@@ -39,7 +42,17 @@ class HuggingFaceCatalogSource(
     }
 
     override suspend fun details(id: String): ModelCardDetail {
-        val detail = api.modelDetail(id)
+        val detail = try {
+            api.modelDetail(id)
+        } catch (e: HttpException) {
+            throw when (e.code()) {
+                401, 403 -> CatalogException.Gated("HF returned ${e.code()} for $id", e)
+                404 -> CatalogException.NotFound("HF has no record for $id", e)
+                else -> e
+            }
+        } catch (e: IOException) {
+            throw CatalogException.Network(e.message ?: "Network error", e)
+        }
         val readme = (detail.cardData?.get("model_summary") as? String)
             ?: detail.cardData?.get("description") as? String
 

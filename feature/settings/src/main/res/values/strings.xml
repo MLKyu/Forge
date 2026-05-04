@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_section_huggingface">HuggingFace (optional)</string>
+    <string name="settings_huggingface_optional_hint">Optional. The curated catalog and all bundled collections download without a token. A token only unlocks extra gated repos (e.g. Meta Llama official builds, Google Gemma) and raises anonymous rate limits.</string>
+    <string name="settings_access_token">Access token</string>
+    <string name="settings_token_set">✓ Authenticated — gated repos are unlocked too</string>
+    <string name="settings_token_missing">No token set — free models still work; only gated repos require auth</string>
+    <string name="settings_get_a_token">Get a token →</string>
+
+    <string name="settings_section_inference_defaults">Inference defaults</string>
+    <string name="settings_use_npu">Use NPU when available</string>
+    <string name="settings_use_npu_desc">Falls back to CPU/GPU when no NPU runtime supports the model</string>
+    <string name="settings_default_temperature">Default temperature: %1$.2f</string>
+    <string name="settings_enable_tools">Enable tools in Chat</string>
+    <string name="settings_enable_tools_desc">Lets the model call calculator and current_time. Smaller models may not follow the call format.</string>
+    <string name="settings_tool_max_iterations">Tool loop max iterations: %1$d</string>
+    <string name="settings_tool_max_iterations_desc">How many times the model can call a tool in one turn before we stop the loop. Higher = more chained tool use, but a confused model can burn tokens.</string>
+    <string name="settings_auto_cleanup">Auto-cleanup over budget</string>
+    <string name="settings_auto_cleanup_desc">When total Library size exceeds the budget, evict non-pinned models oldest-used first.</string>
+    <string name="settings_budget_gb">Budget: %1$d GB</string>
+    <string name="settings_discovery_notifications">Discovery notifications</string>
+    <string name="settings_discovery_notifications_desc">Background poll across every Discovery source; notifies on new models. Requires the Notifications permission on Android 13+.</string>
+    <string name="settings_notification_permission_denied">Permission denied. Enable Notifications for Forge in system settings.</string>
+    <string name="settings_notification_permission_required">Notification permission required — tap the switch again to grant.</string>
+    <string name="settings_poll_every_hours">Poll every: %1$dh</string>
+
+    <string name="settings_section_device">Device</string>
+    <string name="settings_device_model">Model</string>
+    <string name="settings_device_soc">SoC</string>
+    <string name="settings_device_cpu_cores">CPU cores</string>
+    <string name="settings_device_total_ram">Total RAM</string>
+    <string name="settings_device_available_ram">Available RAM</string>
+    <string name="settings_device_accelerators">Accelerators</string>
+
+    <string name="settings_section_storage">Storage</string>
+    <string name="settings_storage_installed_models">Installed models</string>
+    <string name="settings_storage_used_by_models">Used by models</string>
+    <string name="settings_storage_free_disk">Free disk</string>
+    <string name="settings_storage_models_directory">Models directory</string>
+
+    <string name="settings_section_about">About</string>
+    <string name="settings_about_app_version">App version</string>
+    <string name="settings_about_llama_cpp">llama.cpp</string>
+    <string name="settings_about_mediapipe_genai">MediaPipe genai</string>
+    <string name="settings_about_ndk">NDK</string>
+    <string name="settings_about_compose_bom">Compose BOM</string>
+</resources>

@@ -4,7 +4,6 @@ import android.content.Context
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,9 +20,7 @@ class BenchmarkStore(context: Context) {
 
     private val mutex = Mutex()
 
-    private val moshi: Moshi = Moshi.Builder()
-        .add(KotlinJsonAdapterFactory())
-        .build()
+    private val moshi: Moshi = Moshi.Builder().build()
 
     private val mapAdapter: JsonAdapter<Map<String, BenchmarkRecord>> = moshi.adapter(
         Types.newParameterizedType(Map::class.java, String::class.java, BenchmarkRecord::class.java)

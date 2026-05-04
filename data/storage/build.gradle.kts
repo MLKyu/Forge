@@ -26,6 +26,6 @@ dependencies {
     implementation(libs.androidx.core.ktx)
 
     implementation(libs.androidx.datastore.preferences)
-    implementation(libs.moshi.kotlin)
+    implementation(libs.moshi)
     "ksp"(libs.moshi.kotlin.codegen)
 }

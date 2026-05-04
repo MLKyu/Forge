@@ -28,6 +28,6 @@ dependencies {
     implementation(libs.converter.moshi)
     implementation(libs.okhttp)
     implementation(libs.logging.interceptor)
-    implementation(libs.moshi.kotlin)
+    implementation(libs.moshi)
     "ksp"(libs.moshi.kotlin.codegen)
 }

@@ -1,0 +1,7 @@
+<resources>
+    <string name="ui_device_fit_green">GREEN</string>
+    <string name="ui_device_fit_yellow">YELLOW</string>
+    <string name="ui_device_fit_red">RED</string>
+    <string name="ui_device_fit_unsupported">N/A</string>
+    <string name="ui_device_fit_with_tps">%1$s · ~%2$.0f tok/s</string>
+</resources>

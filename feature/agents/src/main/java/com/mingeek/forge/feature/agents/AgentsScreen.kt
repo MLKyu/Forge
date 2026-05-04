@@ -29,11 +29,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mingeek.forge.data.storage.InstalledModel
+import com.mingeek.forge.feature.agents.R
 
 @Composable
 fun AgentsScreen(
@@ -58,19 +60,35 @@ fun AgentsScreen(
     ) {
         Text(
             when (state.mode) {
-                WorkflowMode.PIPELINE -> "Agents · Pipeline (${state.steps.size} step${if (state.steps.size == 1) "" else "s"})"
-                WorkflowMode.ROUTER -> "Agents · Router (${state.router.routes.size} route${if (state.router.routes.size == 1) "" else "s"})"
-                WorkflowMode.DEBATE -> "Agents · Debate (${state.debate.participants.size} participants${if (state.debate.moderatorEnabled) " + moderator" else ""})"
-                WorkflowMode.PLAN_EXECUTE -> "Agents · Plan-Execute${if (state.planExecute.criticEnabled) " + critic" else ""}"
+                WorkflowMode.PIPELINE -> {
+                    val n = state.steps.size
+                    if (n == 1) stringResource(R.string.agents_header_pipeline_one, n)
+                    else stringResource(R.string.agents_header_pipeline_many, n)
+                }
+                WorkflowMode.ROUTER -> {
+                    val n = state.router.routes.size
+                    if (n == 1) stringResource(R.string.agents_header_router_one, n)
+                    else stringResource(R.string.agents_header_router_many, n)
+                }
+                WorkflowMode.DEBATE -> {
+                    val n = state.debate.participants.size
+                    if (state.debate.moderatorEnabled)
+                        stringResource(R.string.agents_header_debate_with_moderator, n)
+                    else stringResource(R.string.agents_header_debate, n)
+                }
+                WorkflowMode.PLAN_EXECUTE ->
+                    if (state.planExecute.criticEnabled)
+                        stringResource(R.string.agents_header_plan_execute_with_critic)
+                    else stringResource(R.string.agents_header_plan_execute)
             },
             style = MaterialTheme.typography.headlineSmall,
         )
         Text(
             when (state.mode) {
-                WorkflowMode.PIPELINE -> "Each step's output flows to the next via {input}."
-                WorkflowMode.ROUTER -> "Router classifies the input; the matching route handles the response."
-                WorkflowMode.DEBATE -> "Each participant answers; the moderator (if enabled) synthesizes a final answer."
-                WorkflowMode.PLAN_EXECUTE -> "Planner outlines a plan; executor carries it out; optional critic refines the answer."
+                WorkflowMode.PIPELINE -> stringResource(R.string.agents_subtitle_pipeline)
+                WorkflowMode.ROUTER -> stringResource(R.string.agents_subtitle_router)
+                WorkflowMode.DEBATE -> stringResource(R.string.agents_subtitle_debate)
+                WorkflowMode.PLAN_EXECUTE -> stringResource(R.string.agents_subtitle_plan_execute)
             },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
@@ -78,19 +96,19 @@ fun AgentsScreen(
 
         if (state.installed.isEmpty()) {
             Text(
-                "No models installed. Download some in Catalog first.",
+                stringResource(R.string.agents_no_models_installed),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             return@Column
         }
 
-        Text("Mode", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.agents_label_mode), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             for (mode in WorkflowMode.entries) {
                 androidx.compose.material3.FilterChip(
                     selected = state.mode == mode,
                     onClick = { viewModel.setMode(mode) },
-                    label = { Text(mode.displayName) },
+                    label = { Text(stringResource(mode.displayNameRes)) },
                 )
             }
         }
@@ -105,7 +123,7 @@ fun AgentsScreen(
         )
 
         if (state.mode == WorkflowMode.PIPELINE) {
-            Text("Presets", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.agents_label_presets), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth(),
@@ -113,7 +131,7 @@ fun AgentsScreen(
                 for (preset in PipelinePreset.entries) {
                     AssistChip(
                         onClick = { viewModel.applyPreset(preset) },
-                        label = { Text(preset.displayName) },
+                        label = { Text(stringResource(preset.displayNameRes)) },
                     )
                 }
             }
@@ -141,7 +159,7 @@ fun AgentsScreen(
                 enabled = state.status != RunStatus.Running,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("+ Add step")
+                Text(stringResource(R.string.agents_add_step))
             }
         } else if (state.mode == WorkflowMode.ROUTER) {
             RouterCard(
@@ -166,7 +184,7 @@ fun AgentsScreen(
                 enabled = state.status != RunStatus.Running,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("+ Add route")
+                Text(stringResource(R.string.agents_add_route))
             }
         } else if (state.mode == WorkflowMode.DEBATE) {
             state.debate.participants.forEachIndexed { index, p ->
@@ -185,7 +203,7 @@ fun AgentsScreen(
                 enabled = state.status != RunStatus.Running,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("+ Add participant")
+                Text(stringResource(R.string.agents_add_participant))
             }
             DebateRoundsCard(
                 rounds = state.debate.maxRounds,
@@ -215,7 +233,7 @@ fun AgentsScreen(
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("User prompt", fontWeight = FontWeight.Medium)
+                Text(stringResource(R.string.agents_user_prompt), fontWeight = FontWeight.Medium)
                 OutlinedTextField(
                     value = state.userPrompt,
                     onValueChange = viewModel::setUserPrompt,
@@ -226,7 +244,7 @@ fun AgentsScreen(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (state.status == RunStatus.Running) {
-                        OutlinedButton(onClick = viewModel::cancel) { Text("Stop") }
+                        OutlinedButton(onClick = viewModel::cancel) { Text(stringResource(R.string.agents_button_stop)) }
                     } else {
                         val readyToRun = state.userPrompt.isNotBlank() && when (state.mode) {
                             WorkflowMode.PIPELINE -> state.steps.all { it.modelId != null }
@@ -239,10 +257,10 @@ fun AgentsScreen(
                                 (!state.planExecute.criticEnabled || state.planExecute.criticModelId != null)
                         }
                         val runLabel = when (state.mode) {
-                            WorkflowMode.PIPELINE -> "Run pipeline"
-                            WorkflowMode.ROUTER -> "Run router"
-                            WorkflowMode.DEBATE -> "Run debate"
-                            WorkflowMode.PLAN_EXECUTE -> "Run plan-execute"
+                            WorkflowMode.PIPELINE -> stringResource(R.string.agents_button_run_pipeline)
+                            WorkflowMode.ROUTER -> stringResource(R.string.agents_button_run_router)
+                            WorkflowMode.DEBATE -> stringResource(R.string.agents_button_run_debate)
+                            WorkflowMode.PLAN_EXECUTE -> stringResource(R.string.agents_button_run_plan_execute)
                         }
                         Button(
                             onClick = viewModel::run,
@@ -260,7 +278,7 @@ fun AgentsScreen(
                         },
                         enabled = state.runs.any { it.output.isNotEmpty() } &&
                             state.status != RunStatus.Running,
-                    ) { Text("Copy") }
+                    ) { Text(stringResource(R.string.agents_button_copy)) }
                     OutlinedButton(
                         onClick = {
                             val name = when (state.mode) {
@@ -273,7 +291,7 @@ fun AgentsScreen(
                         },
                         enabled = state.runs.any { it.output.isNotEmpty() } &&
                             state.status != RunStatus.Running,
-                    ) { Text("Export") }
+                    ) { Text(stringResource(R.string.agents_button_export)) }
                 }
                 StatusLine(state.status)
             }
@@ -287,7 +305,7 @@ fun AgentsScreen(
         }
 
         if (state.runs.isNotEmpty()) {
-            Text("Output", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.agents_output), style = MaterialTheme.typography.titleMedium)
             val isMultiRound = state.runs.any { it.stepId.contains("-r") }
             state.runs.forEachIndexed { index, run ->
                 RunCard(index, run, isMultiRound)
@@ -302,7 +320,7 @@ fun AgentsScreen(
                     if (!matched) {
                         val firstKey = state.router.routes.firstOrNull()?.key ?: "—"
                         Text(
-                            "⚠ Router output didn't match any route key — fell back to first route ($firstKey).",
+                            stringResource(R.string.agents_router_fallback_warning, firstKey),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )
@@ -333,18 +351,18 @@ private fun StepCard(
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Step ${index + 1}",
+                    stringResource(R.string.agents_step_index, index + 1),
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f),
                 )
-                androidx.compose.material3.TextButton(onClick = onMoveUp, enabled = canMoveUp) { Text("↑") }
-                androidx.compose.material3.TextButton(onClick = onMoveDown, enabled = canMoveDown) { Text("↓") }
+                androidx.compose.material3.TextButton(onClick = onMoveUp, enabled = canMoveUp) { Text(stringResource(R.string.agents_move_up)) }
+                androidx.compose.material3.TextButton(onClick = onMoveDown, enabled = canMoveDown) { Text(stringResource(R.string.agents_move_down)) }
                 if (canRemove) {
-                    androidx.compose.material3.TextButton(onClick = onRemove) { Text("Remove") }
+                    androidx.compose.material3.TextButton(onClick = onRemove) { Text(stringResource(R.string.agents_remove)) }
                 }
             }
             DeletedModelNotice(step.modelId, installed)
-            Text("Pick a model", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -353,7 +371,7 @@ private fun StepCard(
                     AssistChip(
                         onClick = { onPickModel(model) },
                         label = {
-                            val prefix = if (model.id == step.modelId) "✓ " else ""
+                            val prefix = if (model.id == step.modelId) stringResource(R.string.agents_check_mark_prefix) else ""
                             Text("$prefix${model.displayName.takeLast(36)}")
                         },
                     )
@@ -364,7 +382,7 @@ private fun StepCard(
                 value = step.systemPrompt,
                 onValueChange = onSystemChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("System prompt") },
+                label = { Text(stringResource(R.string.agents_label_system_prompt)) },
                 minLines = 2,
                 maxLines = 4,
             )
@@ -372,11 +390,11 @@ private fun StepCard(
                 value = step.promptTemplate,
                 onValueChange = onTemplateChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Prompt template ({input} = previous step output)") },
+                label = { Text(stringResource(R.string.agents_label_prompt_template)) },
                 minLines = 1,
                 maxLines = 3,
             )
-            Text("Max output tokens: ${step.maxTokens}", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.agents_max_output_tokens, step.maxTokens), style = MaterialTheme.typography.bodySmall)
             androidx.compose.material3.Slider(
                 value = step.maxTokens.toFloat(),
                 onValueChange = { onMaxTokensChange(it.toInt()) },
@@ -396,14 +414,14 @@ private fun RouterCard(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Router", fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.agents_router_title), fontWeight = FontWeight.Medium)
             Text(
-                "Picks a route by matching its key (case-insensitive substring) in the router output.",
+                stringResource(R.string.agents_router_description),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             DeletedModelNotice(router.routerModelId, installed)
-            Text("Pick a model", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -412,7 +430,7 @@ private fun RouterCard(
                     AssistChip(
                         onClick = { onPickRouterModel(model) },
                         label = {
-                            val prefix = if (model.id == router.routerModelId) "✓ " else ""
+                            val prefix = if (model.id == router.routerModelId) stringResource(R.string.agents_check_mark_prefix) else ""
                             Text("$prefix${model.displayName.takeLast(36)}")
                         },
                     )
@@ -423,7 +441,7 @@ private fun RouterCard(
                 value = router.routerSystemPrompt,
                 onValueChange = onRouterSystemChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Router system prompt (should output a route key)") },
+                label = { Text(stringResource(R.string.agents_label_router_system_prompt)) },
                 minLines = 2,
                 maxLines = 4,
             )
@@ -444,20 +462,20 @@ private fun RouteCard(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Route", fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.agents_route_title), fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 if (canRemove) {
-                    androidx.compose.material3.TextButton(onClick = onRemove) { Text("Remove") }
+                    androidx.compose.material3.TextButton(onClick = onRemove) { Text(stringResource(R.string.agents_remove)) }
                 }
             }
             OutlinedTextField(
                 value = route.key,
                 onValueChange = onKeyChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Match key") },
+                label = { Text(stringResource(R.string.agents_label_match_key)) },
                 singleLine = true,
             )
             DeletedModelNotice(route.modelId, installed)
-            Text("Pick a model", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -466,7 +484,7 @@ private fun RouteCard(
                     AssistChip(
                         onClick = { onPickModel(model) },
                         label = {
-                            val prefix = if (model.id == route.modelId) "✓ " else ""
+                            val prefix = if (model.id == route.modelId) stringResource(R.string.agents_check_mark_prefix) else ""
                             Text("$prefix${model.displayName.takeLast(36)}")
                         },
                     )
@@ -477,7 +495,7 @@ private fun RouteCard(
                 value = route.systemPrompt,
                 onValueChange = onSystemChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Route system prompt") },
+                label = { Text(stringResource(R.string.agents_label_route_system_prompt)) },
                 minLines = 2,
                 maxLines = 4,
             )
@@ -498,13 +516,13 @@ private fun ParticipantCard(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Participant ${index + 1}", fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.agents_participant_index, index + 1), fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 if (canRemove) {
-                    androidx.compose.material3.TextButton(onClick = onRemove) { Text("Remove") }
+                    androidx.compose.material3.TextButton(onClick = onRemove) { Text(stringResource(R.string.agents_remove)) }
                 }
             }
             DeletedModelNotice(participant.modelId, installed)
-            Text("Pick a model", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -513,7 +531,7 @@ private fun ParticipantCard(
                     AssistChip(
                         onClick = { onPickModel(model) },
                         label = {
-                            val prefix = if (model.id == participant.modelId) "✓ " else ""
+                            val prefix = if (model.id == participant.modelId) stringResource(R.string.agents_check_mark_prefix) else ""
                             Text("$prefix${model.displayName.takeLast(36)}")
                         },
                     )
@@ -524,7 +542,7 @@ private fun ParticipantCard(
                 value = participant.systemPrompt,
                 onValueChange = onSystemChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Stance / system prompt") },
+                label = { Text(stringResource(R.string.agents_label_stance_system_prompt)) },
                 minLines = 2,
                 maxLines = 4,
             )
@@ -536,13 +554,13 @@ private fun ParticipantCard(
 private fun DebateRoundsCard(rounds: Int, onRoundsChange: (Int) -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Rounds", fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.agents_rounds_title), fontWeight = FontWeight.Medium)
             Text(
-                "Round 1: each participant answers the user. Rounds 2+: every participant sees the others' previous answers and refines their own.",
+                stringResource(R.string.agents_rounds_description),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text("Max rounds: $rounds", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.agents_max_rounds, rounds), style = MaterialTheme.typography.bodySmall)
             androidx.compose.material3.Slider(
                 value = rounds.toFloat(),
                 onValueChange = { onRoundsChange(it.toInt()) },
@@ -564,7 +582,7 @@ private fun ModeratorCard(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Moderator", fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.agents_moderator_title), fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 androidx.compose.material3.Switch(
                     checked = debate.moderatorEnabled,
                     onCheckedChange = onToggle,
@@ -572,7 +590,7 @@ private fun ModeratorCard(
             }
             if (debate.moderatorEnabled) {
                 DeletedModelNotice(debate.moderatorModelId, installed)
-                Text("Pick a model", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -581,7 +599,7 @@ private fun ModeratorCard(
                         AssistChip(
                             onClick = { onPickModel(model) },
                             label = {
-                                val prefix = if (model.id == debate.moderatorModelId) "✓ " else ""
+                                val prefix = if (model.id == debate.moderatorModelId) stringResource(R.string.agents_check_mark_prefix) else ""
                                 Text("$prefix${model.displayName.takeLast(36)}")
                             },
                         )
@@ -592,13 +610,13 @@ private fun ModeratorCard(
                     value = debate.moderatorSystemPrompt,
                     onValueChange = onSystemChange,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Moderator system prompt") },
+                    label = { Text(stringResource(R.string.agents_label_moderator_system_prompt)) },
                     minLines = 2,
                     maxLines = 4,
                 )
             } else {
                 Text(
-                    "Without a moderator, participants' answers are concatenated as the final result.",
+                    stringResource(R.string.agents_moderator_disabled_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -621,9 +639,9 @@ private fun PlanExecuteCard(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Planner", fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.agents_planner_title), fontWeight = FontWeight.Medium)
             DeletedModelNotice(pe.plannerModelId, installed)
-            Text("Pick a model", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -632,7 +650,7 @@ private fun PlanExecuteCard(
                     AssistChip(
                         onClick = { onPickPlanner(model) },
                         label = {
-                            val prefix = if (model.id == pe.plannerModelId) "✓ " else ""
+                            val prefix = if (model.id == pe.plannerModelId) stringResource(R.string.agents_check_mark_prefix) else ""
                             Text("$prefix${model.displayName.takeLast(36)}")
                         },
                     )
@@ -642,15 +660,15 @@ private fun PlanExecuteCard(
                 value = pe.plannerSystemPrompt,
                 onValueChange = onPlannerSystem,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Planner system prompt") },
+                label = { Text(stringResource(R.string.agents_label_planner_system_prompt)) },
                 minLines = 2,
                 maxLines = 4,
             )
 
             HorizontalDivider()
-            Text("Executor", fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.agents_executor_title), fontWeight = FontWeight.Medium)
             DeletedModelNotice(pe.executorModelId, installed)
-            Text("Pick a model", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -659,7 +677,7 @@ private fun PlanExecuteCard(
                     AssistChip(
                         onClick = { onPickExecutor(model) },
                         label = {
-                            val prefix = if (model.id == pe.executorModelId) "✓ " else ""
+                            val prefix = if (model.id == pe.executorModelId) stringResource(R.string.agents_check_mark_prefix) else ""
                             Text("$prefix${model.displayName.takeLast(36)}")
                         },
                     )
@@ -669,14 +687,14 @@ private fun PlanExecuteCard(
                 value = pe.executorSystemPrompt,
                 onValueChange = onExecutorSystem,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Executor system prompt") },
+                label = { Text(stringResource(R.string.agents_label_executor_system_prompt)) },
                 minLines = 2,
                 maxLines = 4,
             )
 
             HorizontalDivider()
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Critic (optional)", fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.agents_critic_optional_title), fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 androidx.compose.material3.Switch(
                     checked = pe.criticEnabled,
                     onCheckedChange = onCriticToggle,
@@ -684,7 +702,7 @@ private fun PlanExecuteCard(
             }
             if (pe.criticEnabled) {
                 DeletedModelNotice(pe.criticModelId, installed)
-                Text("Pick a model", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -693,7 +711,7 @@ private fun PlanExecuteCard(
                         AssistChip(
                             onClick = { onPickCritic(model) },
                             label = {
-                                val prefix = if (model.id == pe.criticModelId) "✓ " else ""
+                                val prefix = if (model.id == pe.criticModelId) stringResource(R.string.agents_check_mark_prefix) else ""
                                 Text("$prefix${model.displayName.takeLast(36)}")
                             },
                         )
@@ -703,13 +721,13 @@ private fun PlanExecuteCard(
                     value = pe.criticSystemPrompt,
                     onValueChange = onCriticSystem,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Critic system prompt") },
+                    label = { Text(stringResource(R.string.agents_label_critic_system_prompt)) },
                     minLines = 2,
                     maxLines = 4,
                 )
             } else {
                 Text(
-                    "Without a critic the executor's draft is the final answer.",
+                    stringResource(R.string.agents_critic_disabled_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -732,33 +750,34 @@ private fun WorkflowPresetsBar(
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Saved presets (${presets.size})",
+                    stringResource(R.string.agents_saved_presets_title, presets.size),
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f),
                 )
                 androidx.compose.material3.TextButton(
                     onClick = { newPresetName = ""; showSaveDialog = true },
                     enabled = !running,
-                ) { Text("Save current") }
+                ) { Text(stringResource(R.string.agents_save_current)) }
             }
             if (presets.isEmpty()) {
                 Text(
-                    "Save the current mode + config under a name and reapply it later.",
+                    stringResource(R.string.agents_presets_empty),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 for (preset in presets) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        val modeLabel = stringResource(preset.mode.displayNameRes)
                         AssistChip(
                             onClick = { if (!running) onApply(preset.id) },
-                            label = { Text("${preset.name} · ${preset.mode.displayName}") },
+                            label = { Text(stringResource(R.string.agents_preset_label, preset.name, modeLabel)) },
                             modifier = Modifier.weight(1f),
                         )
                         androidx.compose.material3.TextButton(
                             onClick = { onDelete(preset.id) },
                             enabled = !running,
-                        ) { Text("Delete") }
+                        ) { Text(stringResource(R.string.agents_delete)) }
                     }
                 }
             }
@@ -768,12 +787,12 @@ private fun WorkflowPresetsBar(
     if (showSaveDialog) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showSaveDialog = false },
-            title = { Text("Save preset") },
+            title = { Text(stringResource(R.string.agents_dialog_save_preset)) },
             text = {
                 OutlinedTextField(
                     value = newPresetName,
                     onValueChange = { newPresetName = it },
-                    label = { Text("Name") },
+                    label = { Text(stringResource(R.string.agents_dialog_label_name)) },
                     singleLine = true,
                 )
             },
@@ -784,11 +803,11 @@ private fun WorkflowPresetsBar(
                         showSaveDialog = false
                     },
                     enabled = newPresetName.isNotBlank(),
-                ) { Text("Save") }
+                ) { Text(stringResource(R.string.agents_button_save)) }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { showSaveDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.agents_button_cancel))
                 }
             },
         )
@@ -805,12 +824,12 @@ private fun PastRunsSection(
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Recent runs (${pastRuns.size})",
+                    stringResource(R.string.agents_recent_runs_title, pastRuns.size),
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f),
                 )
                 androidx.compose.material3.TextButton(onClick = { expanded = !expanded }) {
-                    Text(if (expanded) "Hide" else "Show")
+                    Text(if (expanded) stringResource(R.string.agents_hide) else stringResource(R.string.agents_show))
                 }
             }
             if (expanded) {
@@ -833,15 +852,21 @@ private fun PastRunCard(run: PastRun, onDelete: () -> Unit) {
         Column(Modifier.padding(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "${run.mode.displayName} · ${formatRunTime(run.createdAtEpochSec)}",
+                    stringResource(
+                        R.string.agents_past_run_header,
+                        stringResource(run.mode.displayNameRes),
+                        formatRunTime(run.createdAtEpochSec),
+                    ),
                     style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier.weight(1f),
                 )
-                androidx.compose.material3.TextButton(onClick = onDelete) { Text("Delete") }
+                androidx.compose.material3.TextButton(onClick = onDelete) { Text(stringResource(R.string.agents_delete)) }
             }
             if (run.userPrompt.isNotBlank()) {
+                val truncated = run.userPrompt.length > 120
                 Text(
-                    "Prompt: ${run.userPrompt.take(120)}${if (run.userPrompt.length > 120) "…" else ""}",
+                    if (truncated) stringResource(R.string.agents_past_run_prompt_short_truncated, run.userPrompt.take(120))
+                    else stringResource(R.string.agents_past_run_prompt_short, run.userPrompt),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -868,7 +893,7 @@ private fun DeletedModelNotice(modelId: String?, installed: List<InstalledModel>
     val isDeleted = modelId != null && installed.none { it.id == modelId }
     if (!isDeleted) return
     Text(
-        "⚠ Saved model no longer installed — pick another below.",
+        stringResource(R.string.agents_deleted_model_notice),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.error,
     )
@@ -883,26 +908,29 @@ private fun DeletedModelNotice(modelId: String?, installed: List<InstalledModel>
  *   "Round 1 — Participant 1" would be needless noise.
  * - Anything else (Pipeline custom agentIds) falls back to "Step {index+1}".
  */
+@Composable
 private fun friendlyStepLabel(run: StepRun, fallbackIndex: Int, isMultiRound: Boolean): String {
     val id = run.stepId
     return when {
-        id == "router" -> "Router"
-        id == "routed" -> "Routed"
-        id == "moderator" -> "Moderator"
+        id == "router" -> stringResource(R.string.agents_step_label_router)
+        id == "routed" -> stringResource(R.string.agents_step_label_routed)
+        id == "moderator" -> stringResource(R.string.agents_step_label_moderator)
         id.startsWith("p-") -> {
             val rest = id.removePrefix("p-")
             val roundSep = rest.indexOf("-r")
             if (roundSep < 0) {
-                val n = rest.toIntOrNull() ?: return "Step ${fallbackIndex + 1}"
-                if (isMultiRound) "Round 1 — Participant ${n + 1}" else "Participant ${n + 1}"
+                val n = rest.toIntOrNull()
+                    ?: return stringResource(R.string.agents_step_label_step, fallbackIndex + 1)
+                if (isMultiRound) stringResource(R.string.agents_step_label_round_participant, 1, n + 1)
+                else stringResource(R.string.agents_step_label_participant, n + 1)
             } else {
                 val n = rest.substring(0, roundSep).toIntOrNull()
                 val r = rest.substring(roundSep + 2).toIntOrNull()
-                if (n == null || r == null) "Step ${fallbackIndex + 1}"
-                else "Round $r — Participant ${n + 1}"
+                if (n == null || r == null) stringResource(R.string.agents_step_label_step, fallbackIndex + 1)
+                else stringResource(R.string.agents_step_label_round_participant, r, n + 1)
             }
         }
-        else -> "Step ${fallbackIndex + 1}"
+        else -> stringResource(R.string.agents_step_label_step, fallbackIndex + 1)
     }
 }
 
@@ -917,7 +945,7 @@ private fun RunCard(index: Int, run: StepRun, isMultiRound: Boolean = false) {
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    if (run.isComplete) "done" else "…",
+                    if (run.isComplete) stringResource(R.string.agents_run_done) else stringResource(R.string.agents_run_ellipsis),
                     color = if (run.isComplete) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall,
@@ -928,7 +956,7 @@ private fun RunCard(index: Int, run: StepRun, isMultiRound: Boolean = false) {
                 StepToolCallChip(call)
             }
             androidx.compose.foundation.text.selection.SelectionContainer {
-                Text(if (run.output.isEmpty() && !run.isComplete) "…" else run.output)
+                Text(if (run.output.isEmpty() && !run.isComplete) stringResource(R.string.agents_run_ellipsis) else run.output)
             }
         }
     }
@@ -948,24 +976,24 @@ private fun StepToolCallChip(call: StepToolCallRecord) {
     ) {
         Column {
             val statusSuffix = when {
-                call.isError -> " · error"
-                call.resultJson == null -> " · running"
+                call.isError -> stringResource(R.string.agents_tool_status_error)
+                call.resultJson == null -> stringResource(R.string.agents_tool_status_running)
                 else -> ""
             }
             Text(
-                "🔧 " + call.toolName + statusSuffix,
+                stringResource(R.string.agents_tool_icon_prefix) + call.toolName + statusSuffix,
                 style = MaterialTheme.typography.labelMedium,
                 color = accent,
             )
             Text(
-                "args: ${call.argumentsJson}",
+                stringResource(R.string.agents_tool_args, call.argumentsJson),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 2.dp),
             )
             call.resultJson?.let {
                 Text(
-                    "result: $it",
+                    stringResource(R.string.agents_tool_result, it),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(top = 2.dp),
@@ -980,19 +1008,24 @@ private fun StatusLine(status: RunStatus) {
     when (status) {
         RunStatus.Idle -> Unit
         RunStatus.Running -> Text(
-            "Running…",
+            stringResource(R.string.agents_status_running),
             color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.bodySmall,
         )
         RunStatus.Done -> Text(
-            "Pipeline complete.",
+            stringResource(R.string.agents_status_done),
             color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.bodySmall,
         )
-        is RunStatus.Failed -> Text(
-            "Failed: ${status.message}",
-            color = MaterialTheme.colorScheme.error,
-            style = MaterialTheme.typography.bodySmall,
-        )
+        is RunStatus.Failed -> {
+            val msg = stringResource(status.messageRes)
+            // The localized reason; append untranslated technical detail when present.
+            val full = status.details?.let { "$msg ($it)" } ?: msg
+            Text(
+                stringResource(R.string.agents_status_failed, full),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
     }
 }

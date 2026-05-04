@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Header -->
+    <string name="library_title">Library</string>
+    <string name="library_import">Import…</string>
+
+    <!-- Summary line -->
+    <string name="library_no_models_installed">No models installed yet</string>
+    <string name="library_models_installed">%1$d model(s) installed</string>
+    <string name="library_filter_match_count">%1$d of %2$d match</string>
+
+    <!-- Empty state -->
+    <string name="library_empty_hint">Browse the Catalog tab to download GGUF models from HuggingFace.</string>
+
+    <!-- Search / sort -->
+    <string name="library_search_label">Search by name, file, or quantization</string>
+    <string name="library_no_matches">No matches.</string>
+    <string name="library_sort_name">Name</string>
+    <string name="library_sort_largest">Largest</string>
+    <string name="library_sort_newest">Newest</string>
+    <string name="library_sort_fastest">Fastest</string>
+
+    <!-- Item card -->
+    <string name="library_item_meta">%1$s · %2$s · %3$s</string>
+    <string name="library_item_runtime">Runtime: %1$s</string>
+    <string name="library_item_benchmark_summary">%1$.1f tok/s · TTFT %2$dms</string>
+    <string name="library_item_benchmark_measured">Measured %1$s on %2$s</string>
+    <string name="library_item_pin">Pin</string>
+    <string name="library_item_unpin">Unpin</string>
+    <string name="library_item_delete">Delete</string>
+
+    <!-- Benchmark state -->
+    <string name="library_benchmark_running">Benchmarking…</string>
+    <string name="library_benchmark_failed">Benchmark failed: %1$s</string>
+    <string name="library_benchmark_retry">Retry</string>
+    <string name="library_benchmark_start">Benchmark</string>
+    <string name="library_benchmark_rerun">Re-benchmark</string>
+    <string name="library_benchmark_no_tokens">Benchmark produced no tokens</string>
+    <string name="library_benchmark_generic_failure">Failed</string>
+
+    <!-- Delete dialog -->
+    <string name="library_delete_dialog_title">Delete model?</string>
+    <string name="library_delete_dialog_text">Remove %1$s (%2$s) from this device? Re-download is required to use it again.</string>
+    <string name="library_dialog_cancel">Cancel</string>
+
+    <!-- Import status (ViewModel-emitted) -->
+    <string name="library_import_in_progress">Importing…</string>
+    <string name="library_import_unsupported">Unsupported file: %1$s</string>
+    <string name="library_import_succeeded">Imported %1$s</string>
+    <string name="library_import_failed">Import failed: %1$s</string>
+    <string name="library_import_error_unknown">unknown</string>
+
+    <!-- Auto-cleanup report -->
+    <string name="library_auto_cleanup_report">Auto-cleanup removed %1$d model(s) to fit %2$d GB budget.</string>
+</resources>

@@ -1,6 +1,7 @@
 package com.mingeek.forge.feature.library
 
 import android.net.Uri
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mingeek.forge.core.hardware.DeviceFitScorer
@@ -27,15 +28,44 @@ import kotlinx.coroutines.launch
 sealed interface BenchmarkState {
     data object Idle : BenchmarkState
     data object Running : BenchmarkState
-    data class Failed(val message: String) : BenchmarkState
+
+    /**
+     * Failure carries a localized message resource and an optional dynamic detail
+     * (typically an exception message which we don't translate).
+     */
+    data class Failed(@StringRes val messageRes: Int, val detail: String? = null) : BenchmarkState
 }
 
-enum class LibrarySort(val label: String) {
-    NAME("Name"),
-    SIZE_DESC("Largest"),
-    INSTALLED_DESC("Newest"),
-    SPEED_DESC("Fastest"),
+enum class LibrarySort(@StringRes val labelRes: Int) {
+    NAME(R.string.library_sort_name),
+    SIZE_DESC(R.string.library_sort_largest),
+    INSTALLED_DESC(R.string.library_sort_newest),
+    SPEED_DESC(R.string.library_sort_fastest),
 }
+
+/**
+ * UI message for the import flow. The screen renders the resource so that
+ * locale changes are picked up automatically.
+ */
+sealed interface ImportStatus {
+    val isError: Boolean
+
+    data object InProgress : ImportStatus {
+        override val isError: Boolean = false
+    }
+    data class Unsupported(val fileName: String) : ImportStatus {
+        override val isError: Boolean = true
+    }
+    data class Succeeded(val fileName: String) : ImportStatus {
+        override val isError: Boolean = false
+    }
+    data class Failed(val detail: String) : ImportStatus {
+        override val isError: Boolean = true
+    }
+}
+
+/** UI message for the auto-cleanup background task. */
+data class CleanupReport(val deletedCount: Int, val budgetGb: Int)
 
 data class LibraryRow(
     val model: InstalledModel,
@@ -100,8 +130,8 @@ class LibraryViewModel(
         viewModelScope.launch { settingsStore.togglePinnedModel(model.id) }
     }
 
-    private val _lastCleanupReport = MutableStateFlow<String?>(null)
-    val lastCleanupReport: StateFlow<String?> = _lastCleanupReport.asStateFlow()
+    private val _lastCleanupReport = MutableStateFlow<CleanupReport?>(null)
+    val lastCleanupReport: StateFlow<CleanupReport?> = _lastCleanupReport.asStateFlow()
 
     fun clearCleanupReport() {
         _lastCleanupReport.value = null
@@ -125,8 +155,10 @@ class LibraryViewModel(
                 val deleted = storage.cleanupIfOverBudget(budgetBytes, trigger.pinned)
                 deleted.forEach { benchmarkStore.remove(it) }
                 if (deleted.isNotEmpty()) {
-                    _lastCleanupReport.value =
-                        "Auto-cleanup removed ${deleted.size} model(s) to fit ${trigger.budgetGb} GB budget."
+                    _lastCleanupReport.value = CleanupReport(
+                        deletedCount = deleted.size,
+                        budgetGb = trigger.budgetGb,
+                    )
                 }
             }
         }
@@ -147,8 +179,8 @@ class LibraryViewModel(
         }
     }
 
-    private val _importStatus = MutableStateFlow<String?>(null)
-    val importStatus: StateFlow<String?> = _importStatus.asStateFlow()
+    private val _importStatus = MutableStateFlow<ImportStatus?>(null)
+    val importStatus: StateFlow<ImportStatus?> = _importStatus.asStateFlow()
 
     fun clearImportStatus() {
         _importStatus.value = null
@@ -156,7 +188,7 @@ class LibraryViewModel(
 
     fun importFromUri(uri: Uri) {
         viewModelScope.launch {
-            _importStatus.value = "Importing…"
+            _importStatus.value = ImportStatus.InProgress
             try {
                 val tempId = "imported://${System.currentTimeMillis()}"
                 val (file, displayName) = storage.importFromUri(uri, tempId)
@@ -164,7 +196,7 @@ class LibraryViewModel(
                     displayName.endsWith(".gguf", ignoreCase = true) -> ModelFormat.GGUF
                     displayName.endsWith(".task", ignoreCase = true) -> ModelFormat.MEDIAPIPE_TASK
                     else -> {
-                        _importStatus.value = "Unsupported file: $displayName"
+                        _importStatus.value = ImportStatus.Unsupported(displayName)
                         file.delete()
                         return@launch
                     }
@@ -187,9 +219,9 @@ class LibraryViewModel(
                     commercialUseAllowed = false,
                 )
                 storage.register(record)
-                _importStatus.value = "Imported ${displayName}"
+                _importStatus.value = ImportStatus.Succeeded(displayName)
             } catch (t: Throwable) {
-                _importStatus.value = "Import failed: ${t.message ?: "unknown"}"
+                _importStatus.value = ImportStatus.Failed(t.message ?: "")
             }
         }
     }
@@ -221,10 +253,17 @@ class LibraryViewModel(
                     benchmarkStore.put(record)
                     _benchmarkStates.update { it - model.id }
                 } else {
-                    _benchmarkStates.update { it + (model.id to BenchmarkState.Failed("Benchmark produced no tokens")) }
+                    _benchmarkStates.update {
+                        it + (model.id to BenchmarkState.Failed(R.string.library_benchmark_no_tokens))
+                    }
                 }
             } catch (t: Throwable) {
-                _benchmarkStates.update { it + (model.id to BenchmarkState.Failed(t.message ?: "Failed")) }
+                _benchmarkStates.update {
+                    it + (model.id to BenchmarkState.Failed(
+                        messageRes = R.string.library_benchmark_generic_failure,
+                        detail = t.message,
+                    ))
+                }
             }
         }
     }

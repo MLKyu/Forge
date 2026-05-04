@@ -11,7 +11,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.mingeek.forge.core.hardware.DeviceFitScorer
 import com.mingeek.forge.data.catalog.ModelCatalogSource
-import com.mingeek.forge.data.download.ModelDownloader
+import com.mingeek.forge.data.download.DownloadQueue
 import com.mingeek.forge.data.storage.ModelStorage
 import com.mingeek.forge.runtime.registry.RuntimeRegistry
 
@@ -24,7 +24,7 @@ fun catalogRouteWithModelId(id: String): String =
 
 fun NavGraphBuilder.catalogScreen(
     catalogSource: ModelCatalogSource,
-    downloader: ModelDownloader,
+    downloadQueue: DownloadQueue,
     storage: ModelStorage,
     fitScorer: DeviceFitScorer,
     runtimeRegistry: RuntimeRegistry,
@@ -45,7 +45,7 @@ fun NavGraphBuilder.catalogScreen(
         val viewModel: CatalogViewModel = viewModel(
             factory = viewModelFactory {
                 initializer {
-                    CatalogViewModel(catalogSource, downloader, storage, fitScorer, runtimeRegistry)
+                    CatalogViewModel(catalogSource, downloadQueue, storage, fitScorer, runtimeRegistry)
                 }
             }
         )

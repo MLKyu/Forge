@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Header -->
+    <string name="discover_title">둘러보기</string>
+    <string name="discover_refresh">새로고침</string>
+    <string name="discover_error_prefix">오류: %1$s</string>
+
+    <!-- Sections -->
+    <string name="discover_section_for_you">추천 모델</string>
+    <string name="discover_section_curated_collections">큐레이션 컬렉션</string>
+    <string name="discover_section_curated_subtitle">전부 가입·토큰 없이 받을 수 있어요</string>
+
+    <!-- Curator bar -->
+    <string name="discover_curator_title">AI 큐레이터</string>
+    <string name="discover_curator_running">큐레이팅 중 (%1$d)…</string>
+    <string name="discover_curator_run">실행</string>
+    <string name="discover_curator_clear">지우기</string>
+    <string name="discover_curator_no_models">큐레이션을 사용하려면 모델을 최소 한 개 설치하세요.</string>
+    <string name="discover_curator_pick_hint">발견된 카드를 평가할 설치된 모델을 선택하세요.</string>
+
+    <!-- Recommendation card -->
+    <string name="discover_match_percent">일치도: %1$s%%</string>
+    <string name="discover_reason_bullet">• %1$s</string>
+
+    <!-- Feed -->
+    <string name="discover_feed_failed">실패: %1$s</string>
+    <string name="discover_feed_empty">항목이 없어요.</string>
+
+    <!-- Curation labels -->
+    <string name="discover_curation_score">★ %1$s/5</string>
+    <string name="discover_curation_score_unknown">★ ?</string>
+
+    <!-- ViewModel-emitted user-facing errors -->
+    <string name="discover_error_pick_curator_first">먼저 큐레이터 모델을 선택하세요</string>
+    <string name="discover_error_curator_uninstalled">큐레이터 모델이 더 이상 설치되어 있지 않아요</string>
+    <string name="discover_error_fetch_failed">불러오기 실패</string>
+    <string name="discover_error_curation_failed">큐레이션 실패</string>
+    <string name="discover_error_with_detail">%1$s: %2$s</string>
+
+    <!-- Curated entry chip / card -->
+    <string name="discover_collection_size_unknown">용량: —</string>
+    <string name="discover_collection_size_gb">~%1$.1f GB</string>
+    <string name="discover_collection_size_mb">~%1$.0f MB</string>
+    <string name="discover_collection_fit_green">잘 맞아요</string>
+    <string name="discover_collection_fit_yellow">빠듯해요</string>
+    <string name="discover_collection_fit_red">이 디바이스엔 너무 커요</string>
+    <string name="discover_collection_fit_unknown">디바이스 적합도 확인 불가</string>
+    <string name="discover_collection_gated">HF 토큰 필요</string>
+    <string name="discover_collection_authed">✓ 인증됨</string>
+</resources>

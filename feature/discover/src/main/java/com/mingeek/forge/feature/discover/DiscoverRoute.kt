@@ -6,10 +6,12 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
+import com.mingeek.forge.core.hardware.DeviceFitScorer
 import com.mingeek.forge.data.discovery.CollectionRepository
 import com.mingeek.forge.data.discovery.DiscoveryRepository
 import com.mingeek.forge.data.discovery.RecommendationEngine
 import com.mingeek.forge.data.storage.ModelStorage
+import com.mingeek.forge.data.storage.SettingsStore
 
 const val DiscoverRoute = "discover"
 
@@ -17,9 +19,12 @@ fun NavGraphBuilder.discoverScreen(
     repository: DiscoveryRepository,
     collectionRepository: CollectionRepository,
     recommender: RecommendationEngine,
+    fitScorer: DeviceFitScorer,
     storage: ModelStorage,
+    settingsStore: SettingsStore,
     curatorAgentFactory: CuratorAgentFactory,
     onOpenInCatalog: (String) -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     composable(DiscoverRoute) {
@@ -30,7 +35,9 @@ fun NavGraphBuilder.discoverScreen(
                         repository = repository,
                         collectionRepository = collectionRepository,
                         recommender = recommender,
+                        fitScorer = fitScorer,
                         storage = storage,
+                        settingsStore = settingsStore,
                         curatorAgentFactory = curatorAgentFactory,
                     )
                 }
@@ -39,6 +46,7 @@ fun NavGraphBuilder.discoverScreen(
         DiscoverScreen(
             viewModel = viewModel,
             onOpenInCatalog = onOpenInCatalog,
+            onOpenSettings = onOpenSettings,
             modifier = modifier,
         )
     }

@@ -20,10 +20,14 @@ import com.mingeek.forge.data.discovery.HuggingFaceLikedSource
 import com.mingeek.forge.data.discovery.HuggingFaceRecentSource
 import com.mingeek.forge.data.discovery.HuggingFaceTrendingSource
 import com.mingeek.forge.data.discovery.RedditLocalLlamaSource
+import com.mingeek.forge.data.download.DownloadQueue
 import com.mingeek.forge.data.download.ModelDownloader
 import com.mingeek.forge.data.storage.BenchmarkStore
 import com.mingeek.forge.data.storage.ModelStorage
 import com.mingeek.forge.data.storage.SettingsStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import java.io.File
 import com.mingeek.forge.runtime.executorch.ExecuTorchRuntime
 import com.mingeek.forge.runtime.llamacpp.LlamaCppRuntime
@@ -35,6 +39,14 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 class ForgeContainer(appContext: Context) {
+
+    /**
+     * Process-wide scope for things that must outlive any single
+     * Activity/ViewModel — e.g. the download queue. Kept as a
+     * SupervisorJob so a failure in one long-running task doesn't poison
+     * unrelated ones.
+     */
+    val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val settingsStore = SettingsStore(appContext)
 
@@ -50,6 +62,15 @@ class ForgeContainer(appContext: Context) {
     val catalogSource = HuggingFaceCatalogSource(huggingFaceApi)
 
     val downloader = ModelDownloader(okHttpClient)
+
+    val downloadQueue = DownloadQueue(
+        downloader = downloader,
+        parentScope = appScope,
+        // Two parallel downloads is the practical sweet spot on phones —
+        // one disk + one network in flight, the other waiting in
+        // semaphore. Bump only after measurement.
+        concurrency = 2,
+    )
 
     val storage = ModelStorage(appContext)
 

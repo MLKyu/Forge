@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.devtools.ksp)
 }
 
 android {
@@ -32,7 +33,8 @@ dependencies {
     implementation(project(":agent:core"))
     implementation(project(":agent:tools"))
     implementation(project(":agent:memory"))
-    implementation(libs.moshi.kotlin)
+    implementation(libs.moshi)
+    ksp(libs.moshi.kotlin.codegen)
 
     implementation(libs.androidx.core.ktx)
     implementation(platform(libs.androidx.compose.bom))

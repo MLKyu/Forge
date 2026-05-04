@@ -25,9 +25,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.mingeek.forge.feature.compare.R
 
 @Composable
 fun CompareScreen(
@@ -46,7 +48,7 @@ fun CompareScreen(
         if (state.installed.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "No models installed. Download GGUF or .task models in Catalog first.",
+                    stringResource(R.string.compare_no_models_installed),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -54,7 +56,7 @@ fun CompareScreen(
         }
 
         Text(
-            "Select 2+ models to compare",
+            stringResource(R.string.compare_select_models_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 12.dp, bottom = 6.dp),
@@ -82,21 +84,21 @@ fun CompareScreen(
                 value = state.draft,
                 onValueChange = viewModel::onDraftChanged,
                 modifier = Modifier.weight(1f).heightIn(min = 56.dp),
-                placeholder = { Text("Prompt to compare across models") },
+                placeholder = { Text(stringResource(R.string.compare_prompt_placeholder)) },
                 enabled = !state.isRunning,
             )
             if (state.isRunning) {
-                OutlinedButton(onClick = viewModel::cancel) { Text("Stop") }
+                OutlinedButton(onClick = viewModel::cancel) { Text(stringResource(R.string.compare_action_stop)) }
             } else {
                 Button(
                     onClick = viewModel::run,
                     enabled = state.draft.isNotBlank() && state.selectedIds.size >= 1,
-                ) { Text("Run") }
+                ) { Text(stringResource(R.string.compare_action_run)) }
             }
             OutlinedButton(
                 onClick = { exportLauncher.launch("compare-results.md") },
                 enabled = state.panes.any { it.output.isNotEmpty() } && !state.isRunning,
-            ) { Text("Export") }
+            ) { Text(stringResource(R.string.compare_action_export)) }
         }
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
@@ -109,7 +111,7 @@ fun CompareScreen(
             if (state.panes.isEmpty()) {
                 item {
                     Text(
-                        "Pick models above and run a prompt — answers will stream side-by-side here.",
+                        stringResource(R.string.compare_empty_panes_hint),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -137,7 +139,7 @@ private fun PaneCard(pane: ComparePane) {
                         clipboard.setText(androidx.compose.ui.text.AnnotatedString(pane.output))
                     },
                     enabled = pane.output.isNotEmpty(),
-                ) { Text("Copy") }
+                ) { Text(stringResource(R.string.compare_action_copy)) }
                 StatusBadge(pane.status)
             }
 
@@ -160,11 +162,16 @@ private fun PaneCard(pane: ComparePane) {
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             when (val s = pane.status) {
-                is PaneStatus.Failed -> Text(
-                    "Error: ${s.message}",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                is PaneStatus.Failed -> {
+                    val resolved = s.messageRes?.let { res ->
+                        if (s.formatArg != null) stringResource(res, s.formatArg) else stringResource(res)
+                    } ?: s.message
+                    Text(
+                        stringResource(R.string.compare_error_prefix, resolved),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
                 else -> androidx.compose.foundation.text.selection.SelectionContainer {
                     Text(
                         if (pane.output.isEmpty() && s != PaneStatus.Done) "…" else pane.output,
@@ -178,16 +185,16 @@ private fun PaneCard(pane: ComparePane) {
 @Composable
 private fun StatusBadge(status: PaneStatus) {
     when (status) {
-        PaneStatus.Idle -> Text("idle", style = MaterialTheme.typography.labelSmall)
+        PaneStatus.Idle -> Text(stringResource(R.string.compare_status_idle), style = MaterialTheme.typography.labelSmall)
         PaneStatus.Loading -> Row(verticalAlignment = Alignment.CenterVertically) {
             CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-            Text(" loading", style = MaterialTheme.typography.labelSmall)
+            Text(stringResource(R.string.compare_status_loading), style = MaterialTheme.typography.labelSmall)
         }
         PaneStatus.Generating -> Row(verticalAlignment = Alignment.CenterVertically) {
             CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-            Text(" generating", style = MaterialTheme.typography.labelSmall)
+            Text(stringResource(R.string.compare_status_generating), style = MaterialTheme.typography.labelSmall)
         }
-        PaneStatus.Done -> Text("done", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
-        is PaneStatus.Failed -> Text("failed", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+        PaneStatus.Done -> Text(stringResource(R.string.compare_status_done), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+        is PaneStatus.Failed -> Text(stringResource(R.string.compare_status_failed), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
     }
 }

@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">Forge</string>
+    <string name="nav_discover">둘러보기</string>
+    <string name="nav_catalog">카탈로그</string>
+    <string name="nav_library">라이브러리</string>
+    <string name="nav_chat">채팅</string>
+    <string name="nav_compare">비교</string>
+    <string name="nav_agents">에이전트</string>
+    <string name="title_settings">설정</string>
+    <string name="cd_back">뒤로</string>
+    <string name="cd_settings">설정</string>
+
+    <!-- Download foreground service / notifications -->
+    <string name="download_channel_name">모델 다운로드</string>
+    <string name="download_channel_description">백그라운드 다운로드 진행 상황과 일시정지·취소 액션</string>
+    <string name="download_summary_idle">다운로드 대기 중</string>
+    <plurals name="download_summary_active">
+        <item quantity="other">다운로드 %d개 진행 중</item>
+    </plurals>
+    <plurals name="download_summary_paused">
+        <item quantity="other">다운로드 %d개 일시정지됨</item>
+    </plurals>
+    <string name="download_status_queued">대기 중…</string>
+    <string name="download_status_verifying">검증 중…</string>
+    <string name="download_status_paused">일시정지됨</string>
+    <string name="download_status_completed">설치 완료</string>
+    <string name="download_status_failed_with_message">실패: %1$s</string>
+    <string name="download_progress_size">%1$s / %2$s</string>
+    <string name="download_action_pause">일시정지</string>
+    <string name="download_action_resume">재개</string>
+    <string name="download_action_cancel">취소</string>
+</resources>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="compare_no_models_installed">No models installed. Download GGUF or .task models in Catalog first.</string>
+    <string name="compare_select_models_hint">Select 2+ models to compare</string>
+    <string name="compare_prompt_placeholder">Prompt to compare across models</string>
+    <string name="compare_action_stop">Stop</string>
+    <string name="compare_action_run">Run</string>
+    <string name="compare_action_export">Export</string>
+    <string name="compare_action_copy">Copy</string>
+    <string name="compare_empty_panes_hint">Pick models above and run a prompt — answers will stream side-by-side here.</string>
+    <string name="compare_error_prefix">Error: %1$s</string>
+    <string name="compare_status_idle">idle</string>
+    <string name="compare_status_loading"> loading</string>
+    <string name="compare_status_generating"> generating</string>
+    <string name="compare_status_done">done</string>
+    <string name="compare_status_failed">failed</string>
+    <string name="compare_no_runtime_supports_format">No runtime supports %1$s</string>
+    <string name="compare_failed_generic">failed</string>
+</resources>

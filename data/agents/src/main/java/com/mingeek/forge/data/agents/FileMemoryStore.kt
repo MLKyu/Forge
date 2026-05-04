@@ -5,7 +5,6 @@ import com.mingeek.forge.agent.memory.MemoryStore
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -13,10 +12,11 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * On-disk [MemoryStore]. Persists entries as a single JSON array file (Moshi
- * reflection adapter). Suitable for hundreds-to-low-thousands of entries —
- * we rewrite the whole file on every put so it's not a fit for high-write
- * workloads. Workflow runs / completed chats are well within budget.
+ * On-disk [MemoryStore]. Persists entries as a single JSON array file using
+ * Moshi codegen adapters (no reflection, so no kotlin-reflect on the runtime
+ * classpath). Suitable for hundreds-to-low-thousands of entries — we rewrite
+ * the whole file on every put so it's not a fit for high-write workloads.
+ * Workflow runs / completed chats are well within budget.
  *
  * Scoring matches `InMemoryStore`: keyword overlap with recency tiebreak.
  * Storage and ranking are independent — switching to a vector store later
@@ -26,7 +26,7 @@ import java.io.File
 class FileMemoryStore(private val file: File) : MemoryStore {
 
     private val mutex = Mutex()
-    private val moshi: Moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+    private val moshi: Moshi = Moshi.Builder().build()
     private val listAdapter: JsonAdapter<List<MemoryEntry>> = moshi.adapter(
         Types.newParameterizedType(List::class.java, MemoryEntry::class.java),
     )
