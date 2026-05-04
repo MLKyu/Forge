@@ -5,6 +5,14 @@
     <string name="chat_load_failed_prefix">Load failed: %1$s</string>
     <string name="chat_no_models_installed">No models installed. Visit the Catalog tab to download GGUF models from HuggingFace.</string>
     <string name="chat_load">Load</string>
+    <string name="chat_start_new">Start new chat</string>
+    <string name="chat_history_count">%1$d chat(s)</string>
+    <string name="chat_history_open">Open</string>
+    <string name="chat_last_used">Last used %1$s</string>
+    <string name="chat_never_used">Not used yet</string>
+    <string name="chat_relative_today">today %1$s</string>
+    <string name="chat_relative_yesterday">yesterday %1$s</string>
+    <string name="chat_relative_days">%1$d day(s) ago</string>
 
     <!-- Header actions -->
     <string name="chat_chats">Chats</string>
@@ -13,6 +21,7 @@
     <string name="chat_export">Export</string>
     <string name="chat_clear">Clear</string>
     <string name="chat_unload">Unload</string>
+    <string name="chat_more">More</string>
 
     <!-- Swap sheet -->
     <string name="chat_swap_model_title">Swap model</string>

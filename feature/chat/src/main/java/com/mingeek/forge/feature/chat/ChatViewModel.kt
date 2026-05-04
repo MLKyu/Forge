@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.mingeek.forge.data.storage.InstalledModel
 import com.mingeek.forge.data.storage.ModelStorage
 import com.mingeek.forge.data.storage.SettingsStore
+import com.mingeek.forge.data.storage.effectiveLastUsedEpochSec
 import com.mingeek.forge.domain.ChatTemplate
 import com.mingeek.forge.domain.RuntimeId
 import com.mingeek.forge.runtime.core.LoadConfig
@@ -28,19 +29,23 @@ import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -111,6 +116,16 @@ class ChatViewModel(
     private val registry: RuntimeRegistry,
     private val settingsStore: SettingsStore,
     private val chatHistory: MemoryStore,
+    /**
+     * Process-scoped coroutine scope used by [onCleared] to release the
+     * native runtime session. We can't reuse [viewModelScope] there
+     * because Android cancels it *before* `onCleared` runs — any
+     * `viewModelScope.launch { ... }` issued from `onCleared` is
+     * scheduled into an already-cancelled scope and never executes,
+     * leaking the loaded model's KV-cache and mmap'd weights until
+     * process death. The app scope is held by [com.mingeek.forge.di.ForgeContainer].
+     */
+    private val appScope: CoroutineScope,
 ) : ViewModel() {
 
     val installed: StateFlow<List<InstalledModel>> = storage.installed
@@ -119,6 +134,16 @@ class ChatViewModel(
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
 
     private var generationJob: Job? = null
+    /**
+     * Tracks the most recent load coroutine across [loadModel],
+     * [loadModelAndResume], and [swapModel]. A new load cancels the
+     * previous one before starting; combined with the
+     * `NonCancellable`-protected unload in [doLoad]'s finally block,
+     * this prevents native runtime sessions from being orphaned when
+     * the user (or auto-load) issues a second load while the first is
+     * still inside `runtime.load(...)`.
+     */
+    private var loadJob: Job? = null
 
     private val moshi: Moshi = Moshi.Builder().build()
     private val messagesAdapter: JsonAdapter<List<ChatMessage>> = moshi.adapter(
@@ -128,8 +153,19 @@ class ChatViewModel(
     @OptIn(FlowPreview::class)
     private fun startAutoSave() {
         viewModelScope.launch {
+            // Only persist while a Ready session is active. During
+            // [SessionState.Loading] (e.g. resume-from-history or
+            // model swap) the model id is not yet bound, and writing
+            // a `null` modelId would clobber the conversation's
+            // metadata and break the model picker's per-model
+            // grouping. The Ready transition itself re-emits the
+            // same triple with the correct modelId, so no edits are
+            // lost.
             _state
-                .map { Triple(it.conversationId, it.messages, (it.sessionState as? SessionState.Ready)?.model?.id) }
+                .mapNotNull { st ->
+                    val ready = st.sessionState as? SessionState.Ready ?: return@mapNotNull null
+                    Triple(st.conversationId, st.messages, ready.model.id)
+                }
                 .distinctUntilChanged()
                 .drop(1)
                 .debounce(500)
@@ -142,7 +178,28 @@ class ChatViewModel(
 
     init {
         startAutoSave()
-        viewModelScope.launch { refreshPastConversations() }
+        viewModelScope.launch {
+            refreshPastConversations()
+            autoLoadMostRecent()
+        }
+    }
+
+    /**
+     * If the user has previously loaded any model, jump straight into a
+     * fresh chat with that one — saves a tap on every chat-tab entry.
+     * First-time users (no `lastUsedEpochSec` on any model) still see
+     * the picker so they can choose deliberately.
+     *
+     * Only runs when we're in [SessionState.Idle] so it never disturbs
+     * an in-progress session restored across config changes.
+     */
+    private fun autoLoadMostRecent() {
+        if (_state.value.sessionState !is SessionState.Idle) return
+        val candidate = installed.value
+            .filter { it.lastUsedEpochSec != null }
+            .maxByOrNull { it.effectiveLastUsedEpochSec() }
+            ?: return
+        loadModel(candidate)
     }
 
     private suspend fun persistConversation(id: String, msgs: List<ChatMessage>, modelId: String?) {
@@ -256,7 +313,9 @@ class ChatViewModel(
             return
         }
         if (current.model.id == model.id) return
-        viewModelScope.launch {
+        val previous = loadJob
+        loadJob = viewModelScope.launch {
+            previous?.cancelAndJoin()
             generationJob?.cancel()
             unloadInternal()
             val note = ChatMessage(
@@ -276,10 +335,58 @@ class ChatViewModel(
     }
 
     fun loadModel(model: InstalledModel) {
-        viewModelScope.launch {
+        val previous = loadJob
+        loadJob = viewModelScope.launch {
+            previous?.cancelAndJoin()
             unloadInternal()
-            _state.update { it.copy(sessionState = SessionState.Loading, messages = emptyList()) }
+            _state.update {
+                it.copy(
+                    sessionState = SessionState.Loading,
+                    messages = emptyList(),
+                    conversationId = UUID.randomUUID().toString(),
+                )
+            }
             doLoad(model)
+        }
+    }
+
+    /**
+     * Pick a model AND restore a specific past conversation in one shot
+     * — used by the model picker's per-model history list so the user
+     * can jump from "model X had these 3 chats" → "this chat" without a
+     * two-step flow. Falls back to a fresh chat if the conversation has
+     * been deleted in the meantime.
+     */
+    fun loadModelAndResume(model: InstalledModel, conversationId: String) {
+        val previous = loadJob
+        loadJob = viewModelScope.launch {
+            previous?.cancelAndJoin()
+            val entry = chatHistory.get("chat:$conversationId")
+            if (entry == null) {
+                // Inline the fresh-load path rather than re-entering
+                // [loadModel], which would dispatch another coroutine
+                // and re-run cancel-previous against ourselves.
+                unloadInternal()
+                _state.update {
+                    it.copy(
+                        sessionState = SessionState.Loading,
+                        messages = emptyList(),
+                        conversationId = UUID.randomUUID().toString(),
+                    )
+                }
+                doLoad(model)
+                return@launch
+            }
+            val msgs = runCatching { messagesAdapter.fromJson(entry.content) }.getOrNull().orEmpty()
+            unloadInternal()
+            _state.update {
+                it.copy(
+                    sessionState = SessionState.Loading,
+                    messages = msgs,
+                    conversationId = conversationId,
+                )
+            }
+            doLoad(model, preserveMessages = true)
         }
     }
 
@@ -299,6 +406,12 @@ class ChatViewModel(
             return
         }
 
+        // Tracks a session id we've taken ownership of from the
+        // runtime but haven't yet handed off to UI state. If the
+        // coroutine is cancelled mid-flight (e.g. user kicked off a
+        // second load), the finally block releases it so the native
+        // KV-cache / mmap'd weights aren't leaked until process death.
+        var orphanedSessionId: com.mingeek.forge.runtime.core.SessionId? = null
         try {
             val loaded = runtime.load(
                 ModelHandle(
@@ -311,6 +424,7 @@ class ChatViewModel(
                     threads = 0,
                 ),
             )
+            orphanedSessionId = loaded.sessionId
             val template = loaded.chatTemplate
                 ?.let { ChatTemplate.fromChatTemplateString(it) }
                 ?: ChatTemplate.detect(model.id, model.fileName)
@@ -318,9 +432,14 @@ class ChatViewModel(
             _state.update {
                 it.copy(sessionState = SessionState.Ready(loaded.sessionId, model, template))
             }
+            // Ownership transferred to state; nothing to clean up.
+            orphanedSessionId = null
+        } catch (ce: CancellationException) {
+            // Don't surface a failure UI for cooperative cancellation;
+            // the new load has already taken over. Cleanup happens in
+            // the finally block.
+            throw ce
         } catch (t: Throwable) {
-            // On failure during a swap we still keep the preserved messages;
-            // user can retry with a different model.
             val reason = t.message ?: app.getString(R.string.chat_load_failed_generic)
             _state.update {
                 it.copy(
@@ -339,6 +458,13 @@ class ChatViewModel(
                         role = ChatMessage.Role.SYSTEM,
                         content = app.getString(R.string.chat_swap_failed, swapReason),
                     ))
+                }
+            }
+        } finally {
+            val orphan = orphanedSessionId
+            if (orphan != null) {
+                withContext(NonCancellable) {
+                    runCatching { runtime.unload(orphan) }
                 }
             }
         }
@@ -616,7 +742,18 @@ class ChatViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        viewModelScope.launch { unloadInternal() }
+        // Snapshot the live session before launching — the VM (and its
+        // state flow) might be GC-eligible the moment we return, but
+        // local vals captured into the appScope-launched coroutine
+        // outlive that.
+        val ready = _state.value.sessionState as? SessionState.Ready ?: return
+        val runtimeId = runCatching { RuntimeId.valueOf(ready.model.recommendedRuntime) }
+            .getOrDefault(RuntimeId.LLAMA_CPP)
+        val runtime = registry.pick(ready.model.format, runtimeId) ?: return
+        val sessionId = ready.sessionId
+        appScope.launch(NonCancellable) {
+            runCatching { runtime.unload(sessionId) }
+        }
     }
 
     private companion object {

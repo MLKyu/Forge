@@ -2,27 +2,37 @@ package com.mingeek.forge.feature.chat
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,8 +68,11 @@ fun ChatScreen(
             SessionState.Idle, is SessionState.Failed ->
                 ModelPicker(
                     installed = installed,
+                    pastConversations = state.pastConversations,
                     failed = s as? SessionState.Failed,
                     onSelect = viewModel::loadModel,
+                    onResumeWith = viewModel::loadModelAndResume,
+                    onDeleteConversation = viewModel::deleteConversation,
                     modifier = Modifier.fillMaxSize().padding(16.dp),
                 )
             SessionState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -87,8 +100,11 @@ fun ChatScreen(
 @Composable
 private fun ModelPicker(
     installed: List<InstalledModel>,
+    pastConversations: List<PastConversation>,
     failed: SessionState.Failed?,
     onSelect: (InstalledModel) -> Unit,
+    onResumeWith: (InstalledModel, String) -> Unit,
+    onDeleteConversation: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
@@ -113,26 +129,145 @@ private fun ModelPicker(
             )
             return@Column
         }
+        // Most-recently-used floats to the top; never-used models are
+        // ordered by install time. Index per model id makes the
+        // per-card filtering O(1) and isolates the sort policy from
+        // ModelPickerCard's render logic.
+        val sorted = remember(installed) {
+            installed.sortedByDescending { it.lastUsedEpochSec ?: 0L }
+        }
+        val convsByModel = remember(pastConversations) {
+            pastConversations.groupBy { it.lastModelId }
+        }
         LazyColumn(
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(installed, key = { it.id }) { model ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                        Text(model.displayName, fontWeight = FontWeight.Medium)
-                        Text(
-                            "${model.fileName} · ${model.quantization.name}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            items(sorted, key = { it.id }) { model ->
+                ModelPickerCard(
+                    model = model,
+                    conversations = convsByModel[model.id].orEmpty(),
+                    onLoad = { onSelect(model) },
+                    onResume = { convId -> onResumeWith(model, convId) },
+                    onDelete = onDeleteConversation,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModelPickerCard(
+    model: InstalledModel,
+    conversations: List<PastConversation>,
+    onLoad: () -> Unit,
+    onResume: (String) -> Unit,
+    onDelete: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth().padding(12.dp)) {
+            Text(model.displayName, fontWeight = FontWeight.Medium, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            Text(
+                "${model.fileName} · ${model.quantization.name}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+            Text(
+                lastUsedLabel(model),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Button(onClick = onLoad) {
+                    Text(stringResource(R.string.chat_start_new))
+                }
+                if (conversations.isNotEmpty()) {
+                    OutlinedButton(onClick = { expanded = !expanded }) {
+                        Text(stringResource(R.string.chat_history_count, conversations.size))
+                    }
+                }
+            }
+            if (expanded && conversations.isNotEmpty()) {
+                HorizontalDivider(Modifier.padding(top = 8.dp, bottom = 4.dp))
+                // Most recent first. Cap to 10 — anyone with a long
+                // history can still find older chats via the in-chat
+                // history sheet, which doesn't truncate.
+                val ordered = conversations.sortedByDescending { it.updatedAtEpochSec }.take(10)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    for (conv in ordered) {
+                        ConversationRow(
+                            conv = conv,
+                            onResume = { onResume(conv.id) },
+                            onDelete = { onDelete(conv.id) },
                         )
-                        Button(onClick = { onSelect(model) }, modifier = Modifier.padding(top = 8.dp)) {
-                            Text(stringResource(R.string.chat_load))
-                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ConversationRow(
+    conv: PastConversation,
+    onResume: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onResume)
+            .padding(vertical = 6.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                conv.title,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+            Text(
+                stringResource(R.string.chat_message_count, conv.messageCount) +
+                    " · " + relativeTime(conv.updatedAtEpochSec),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        TextButton(onClick = onDelete) {
+            Text(stringResource(R.string.chat_delete))
+        }
+    }
+}
+
+@Composable
+private fun lastUsedLabel(model: InstalledModel): String {
+    val sec = model.lastUsedEpochSec
+    return if (sec == null) {
+        stringResource(R.string.chat_never_used)
+    } else {
+        stringResource(R.string.chat_last_used, relativeTime(sec))
+    }
+}
+
+@Composable
+private fun relativeTime(epochSec: Long): String {
+    val now = System.currentTimeMillis() / 1000
+    val deltaSec = (now - epochSec).coerceAtLeast(0)
+    val daysAgo = (deltaSec / 86_400).toInt()
+    val hm = HM_FORMATTER.format(java.time.Instant.ofEpochSecond(epochSec))
+    return when {
+        daysAgo == 0 -> stringResource(R.string.chat_relative_today, hm)
+        daysAgo == 1 -> stringResource(R.string.chat_relative_yesterday, hm)
+        else -> stringResource(R.string.chat_relative_days, daysAgo)
     }
 }
 
@@ -165,34 +300,80 @@ private fun ChatBody(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().imePadding()) {
+        var menuExpanded by remember { mutableStateOf(false) }
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text(model.displayName, fontWeight = FontWeight.Medium)
                 Text(
-                    "${model.quantization.name} · ${model.recommendedRuntime} · template: ${template.id}",
+                    model.displayName,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+                Text(
+                    "${model.quantization.name} · ${model.recommendedRuntime} · ${template.id}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
             }
-            TextButton(
-                onClick = { showConversationsSheet = true },
-                enabled = state.pastConversations.isNotEmpty(),
-            ) { Text(stringResource(R.string.chat_chats)) }
-            TextButton(onClick = onNewConversation) { Text(stringResource(R.string.chat_new)) }
-            TextButton(onClick = { showSwapSheet = true }, enabled = installed.size > 1) {
-                Text(stringResource(R.string.chat_swap))
+            // The most-used action stays a primary tap target. Everything
+            // else collapses into the overflow menu — six TextButtons in
+            // a phone-width Row was wrapping into a multi-line header
+            // that pushed the input row past the bottom navigation bar.
+            IconButton(onClick = onNewConversation) {
+                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.chat_new))
             }
-            TextButton(onClick = onExport, enabled = state.messages.isNotEmpty()) {
-                Text(stringResource(R.string.chat_export))
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.chat_more))
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_chats)) },
+                        enabled = state.pastConversations.isNotEmpty(),
+                        onClick = {
+                            menuExpanded = false
+                            showConversationsSheet = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_swap)) },
+                        enabled = installed.size > 1,
+                        onClick = {
+                            menuExpanded = false
+                            showSwapSheet = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_export)) },
+                        enabled = state.messages.isNotEmpty(),
+                        onClick = {
+                            menuExpanded = false
+                            onExport()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_clear)) },
+                        enabled = state.messages.isNotEmpty(),
+                        onClick = {
+                            menuExpanded = false
+                            onClear()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_unload)) },
+                        onClick = {
+                            menuExpanded = false
+                            onUnload()
+                        },
+                    )
+                }
             }
-            TextButton(onClick = onClear, enabled = state.messages.isNotEmpty()) {
-                Text(stringResource(R.string.chat_clear))
-            }
-            TextButton(onClick = onUnload) { Text(stringResource(R.string.chat_unload)) }
         }
         HorizontalDivider()
 
@@ -292,26 +473,78 @@ private fun ChatBody(
 
         HorizontalDivider()
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            OutlinedTextField(
+            // Material3 OutlinedTextField has a hard 56dp min height baked
+            // into its layout; for a chat composer that feels oversized.
+            // Drop down to BasicTextField with a thin tinted background +
+            // our own padding to land at ~40dp single-line, growing to
+            // ~120dp (≈5 lines) before scrolling internally.
+            CompactChatField(
                 value = state.draft,
                 onValueChange = onDraftChanged,
-                modifier = Modifier.weight(1f),
-                placeholder = { Text(stringResource(R.string.chat_type_a_message)) },
+                placeholder = stringResource(R.string.chat_type_a_message),
                 enabled = !state.isGenerating,
+                modifier = Modifier.weight(1f),
             )
             if (state.isGenerating) {
-                OutlinedButton(onClick = onCancel) { Text(stringResource(R.string.chat_stop)) }
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.heightIn(min = 40.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                ) { Text(stringResource(R.string.chat_stop)) }
             } else {
-                Button(onClick = onSend, enabled = state.draft.isNotBlank()) {
+                Button(
+                    onClick = onSend,
+                    enabled = state.draft.isNotBlank(),
+                    modifier = Modifier.heightIn(min = 40.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                ) {
                     Text(stringResource(R.string.chat_send))
                 }
             }
         }
     }
+}
+
+@Composable
+private fun CompactChatField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val placeholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        enabled = enabled,
+        textStyle = MaterialTheme.typography.bodyMedium.copy(color = textColor),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        maxLines = 5,
+        modifier = modifier
+            .heightIn(min = 40.dp, max = 120.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(containerColor)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        decorationBox = { inner ->
+            Box(contentAlignment = Alignment.CenterStart) {
+                if (value.isEmpty()) {
+                    Text(
+                        text = placeholder,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = placeholderColor,
+                    )
+                }
+                inner()
+            }
+        },
+    )
 }
 
 @Composable

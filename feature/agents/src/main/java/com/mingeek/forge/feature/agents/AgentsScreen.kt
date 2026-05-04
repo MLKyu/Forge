@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
@@ -363,11 +361,11 @@ private fun StepCard(
             }
             DeletedModelNotice(step.modelId, installed)
             Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
-            LazyColumn(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                items(installed, key = { "step${index}-${it.id}" }) { model ->
+                for (model in installed) {
                     AssistChip(
                         onClick = { onPickModel(model) },
                         label = {
@@ -422,11 +420,11 @@ private fun RouterCard(
             )
             DeletedModelNotice(router.routerModelId, installed)
             Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
-            LazyColumn(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                items(installed, key = { "router-${it.id}" }) { model ->
+                for (model in installed) {
                     AssistChip(
                         onClick = { onPickRouterModel(model) },
                         label = {
@@ -476,11 +474,11 @@ private fun RouteCard(
             )
             DeletedModelNotice(route.modelId, installed)
             Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
-            LazyColumn(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                items(installed, key = { "${route.agentId}-${it.id}" }) { model ->
+                for (model in installed) {
                     AssistChip(
                         onClick = { onPickModel(model) },
                         label = {
@@ -523,11 +521,11 @@ private fun ParticipantCard(
             }
             DeletedModelNotice(participant.modelId, installed)
             Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
-            LazyColumn(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                items(installed, key = { "${participant.agentId}-${it.id}" }) { model ->
+                for (model in installed) {
                     AssistChip(
                         onClick = { onPickModel(model) },
                         label = {
@@ -591,11 +589,11 @@ private fun ModeratorCard(
             if (debate.moderatorEnabled) {
                 DeletedModelNotice(debate.moderatorModelId, installed)
                 Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
-                LazyColumn(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    items(installed, key = { "moderator-${it.id}" }) { model ->
+                    for (model in installed) {
                         AssistChip(
                             onClick = { onPickModel(model) },
                             label = {
@@ -642,11 +640,11 @@ private fun PlanExecuteCard(
             Text(stringResource(R.string.agents_planner_title), fontWeight = FontWeight.Medium)
             DeletedModelNotice(pe.plannerModelId, installed)
             Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
-            LazyColumn(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                items(installed, key = { "planner-${it.id}" }) { model ->
+                for (model in installed) {
                     AssistChip(
                         onClick = { onPickPlanner(model) },
                         label = {
@@ -669,11 +667,11 @@ private fun PlanExecuteCard(
             Text(stringResource(R.string.agents_executor_title), fontWeight = FontWeight.Medium)
             DeletedModelNotice(pe.executorModelId, installed)
             Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
-            LazyColumn(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                items(installed, key = { "executor-${it.id}" }) { model ->
+                for (model in installed) {
                     AssistChip(
                         onClick = { onPickExecutor(model) },
                         label = {
@@ -703,11 +701,11 @@ private fun PlanExecuteCard(
             if (pe.criticEnabled) {
                 DeletedModelNotice(pe.criticModelId, installed)
                 Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
-                LazyColumn(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    items(installed, key = { "critic-${it.id}" }) { model ->
+                    for (model in installed) {
                         AssistChip(
                             onClick = { onPickCritic(model) },
                             label = {
