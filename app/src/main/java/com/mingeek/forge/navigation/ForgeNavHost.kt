@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.mingeek.forge.di.ForgeContainer
-import com.mingeek.forge.feature.agents.agentsScreen
+import com.mingeek.forge.feature.workflows.workflowsScreen
 import com.mingeek.forge.feature.catalog.catalogRouteWithModelId
 import com.mingeek.forge.feature.catalog.catalogScreen
 import com.mingeek.forge.feature.chat.chatScreen
@@ -82,11 +82,11 @@ fun ForgeNavHost(
             registry = container.runtimeRegistry,
             settingsStore = container.settingsStore,
         )
-        agentsScreen(
+        workflowsScreen(
             storage = container.storage,
             registry = container.runtimeRegistry,
             settingsStore = container.settingsStore,
-            runHistory = container.agentRunHistory,
+            runHistory = container.workflowRunHistory,
         )
         settingsScreen(
             settingsStore = container.settingsStore,

@@ -420,7 +420,7 @@ class ChatViewModel(
                     format = model.format,
                 ),
                 LoadConfig(
-                    contextLength = model.contextLength.coerceAtMost(4096),
+                    contextLength = model.contextLength.coerceAtMost(LOAD_CONTEXT_CAP),
                     threads = 0,
                 ),
             )
@@ -524,25 +524,49 @@ class ChatViewModel(
         val toolsEnabled = settingsStore.toolsEnabled.value
         val tools: List<Tool> = if (toolsEnabled) DEFAULT_TOOLS else emptyList()
 
-        // Build the canonical conversation as ChatTemplate turns. We mutate this
-        // across the tool loop instead of re-deriving from messages.
-        val baseTurns = mutableListOf<ChatTemplate.Turn>()
+        // The prompt is split into three zones so we can trim to fit n_ctx
+        // without ever touching the parts the model needs intact:
+        //
+        //   system   — tool prelude / sys prompt; always at the top.
+        //   history  — older USER/ASSISTANT pairs; droppable from the front.
+        //   current  — the just-sent user message + everything appended
+        //              during the tool loop (assistant tool call ↔ tool
+        //              result pairs that semantically belong together).
+        //
+        // chars≈tokens is the budgeting heuristic — accurate enough for
+        // Korean BPE worst case, generous for English/code. The runtime
+        // surfaces a clean Token.Done(ERROR) if the heuristic still
+        // underestimates, which we promote to a visible error below.
+        val systemTurnList = mutableListOf<ChatTemplate.Turn>()
         if (tools.isNotEmpty()) {
-            baseTurns += ChatTemplate.Turn(
+            systemTurnList += ChatTemplate.Turn(
                 role = ChatTemplate.Turn.Role.SYSTEM,
                 content = ToolCallProtocol.buildPrelude(tools),
             )
         }
+        val allHistory = mutableListOf<ChatTemplate.Turn>()
         for (m in _state.value.messages) {
             if (m.id == assistantMsg.id) continue
             // SYSTEM notes (e.g. "Switched to X") never get sent to the model.
             if (m.role == ChatMessage.Role.SYSTEM) continue
-            baseTurns += ChatTemplate.Turn(
+            allHistory += ChatTemplate.Turn(
                 role = if (m.role == ChatMessage.Role.USER) ChatTemplate.Turn.Role.USER
                 else ChatTemplate.Turn.Role.ASSISTANT,
                 content = m.content,
             )
         }
+        // The just-sent user message is the last item of allHistory; lift
+        // it into `current` so it is never dropped by the trim loop.
+        val currentTurn = mutableListOf<ChatTemplate.Turn>()
+        if (allHistory.isNotEmpty()) currentTurn += allHistory.removeAt(allHistory.lastIndex)
+        val zones = PromptZones(
+            system = systemTurnList,
+            history = allHistory,
+            current = currentTurn,
+        )
+        val effectiveCtx = ready.model.contextLength.coerceAtMost(LOAD_CONTEXT_CAP)
+        val budget = (effectiveCtx - GENERATION_RESERVE).coerceAtLeast(MIN_HISTORY_BUDGET)
+        zones.trimToBudget(budget)
 
         generationJob = viewModelScope.launch {
             try {
@@ -550,7 +574,8 @@ class ChatViewModel(
                     runtime = runtime,
                     sessionId = ready.sessionId,
                     template = ready.template,
-                    baseTurns = baseTurns,
+                    zones = zones,
+                    budget = budget,
                     tools = tools,
                     assistantMsgId = assistantMsg.id,
                 )
@@ -568,7 +593,8 @@ class ChatViewModel(
         runtime: com.mingeek.forge.runtime.core.InferenceRuntime,
         sessionId: SessionId,
         template: ChatTemplate,
-        baseTurns: MutableList<ChatTemplate.Turn>,
+        zones: PromptZones,
+        budget: Int,
         tools: List<Tool>,
         assistantMsgId: String,
     ) {
@@ -578,9 +604,14 @@ class ChatViewModel(
         var iteration = 0
 
         while (true) {
-            val promptText = template.format(baseTurns, addAssistantPrefix = true)
+            // Tool loop iterations grow `current` (assistant call + tool
+            // result pairs); re-trim before every generate so we stay
+            // under n_ctx without dropping the call/result chain.
+            zones.trimToBudget(budget)
+            val promptText = template.format(zones.compose(), addAssistantPrefix = true)
             val turnOutput = StringBuilder()
             var lastUsage: Token.TokenUsage? = null
+            var finishReason: Token.FinishReason? = null
 
             runtime.generate(
                 sessionId,
@@ -596,9 +627,24 @@ class ChatViewModel(
                         turnOutput.append(token.piece)
                         appendToAssistant(assistantMsgId, token.piece)
                     }
-                    is Token.Done -> { lastUsage = token.usage }
+                    is Token.Done -> {
+                        lastUsage = token.usage
+                        finishReason = token.finishReason
+                    }
                     is Token.ToolCall -> { /* runtime-level tool calls unused */ }
                 }
+            }
+
+            // Promote a runtime-level error (KV cache exhausted, decode
+            // failure, …) to a visible chat message instead of silently
+            // finalizing on whatever partial text we collected.
+            if (finishReason == Token.FinishReason.ERROR) {
+                appendToAssistant(
+                    assistantMsgId,
+                    app.getString(R.string.chat_error_inline, "inference failed"),
+                )
+                finalizeAssistant(assistantMsgId, lastUsage)
+                return
             }
 
             val rendered = turnOutput.toString().trim()
@@ -643,9 +689,11 @@ class ChatViewModel(
             replaceAssistantContent(assistantMsgId, "")
 
             // Add the assistant's call turn + the synthetic tool result so the
-            // next generate can produce a final answer.
-            baseTurns += ChatTemplate.Turn(ChatTemplate.Turn.Role.ASSISTANT, rendered)
-            baseTurns += ChatTemplate.Turn(
+            // next generate can produce a final answer. These belong to the
+            // *current* turn — they share semantics with the tool call right
+            // before them and must never be split by the trim loop.
+            zones.current += ChatTemplate.Turn(ChatTemplate.Turn.Role.ASSISTANT, rendered)
+            zones.current += ChatTemplate.Turn(
                 role = ChatTemplate.Turn.Role.USER,
                 content = ToolCallProtocol.renderResult(result),
             )
@@ -657,6 +705,29 @@ class ChatViewModel(
                 )
                 finalizeAssistant(assistantMsgId, lastUsage)
                 return
+            }
+        }
+    }
+
+    /**
+     * Three-zone prompt composition that lets the trim loop reclaim space
+     * by dropping ONLY older history, leaving system instructions and the
+     * in-flight turn (latest user message + tool exchange chain) intact.
+     */
+    private class PromptZones(
+        val system: List<ChatTemplate.Turn>,
+        val history: MutableList<ChatTemplate.Turn>,
+        val current: MutableList<ChatTemplate.Turn>,
+    ) {
+        fun compose(): List<ChatTemplate.Turn> = system + history + current
+
+        fun trimToBudget(budget: Int) {
+            val sacrosanctChars = system.sumOf { it.content.length } +
+                current.sumOf { it.content.length }
+            val historyBudget = (budget - sacrosanctChars).coerceAtLeast(0)
+            var historyChars = history.sumOf { it.content.length }
+            while (history.isNotEmpty() && historyChars > historyBudget) {
+                historyChars -= history.removeAt(0).content.length
             }
         }
     }
@@ -758,5 +829,19 @@ class ChatViewModel(
 
     private companion object {
         val DEFAULT_TOOLS: List<Tool> = listOf(CalculatorTool(), CurrentTimeTool(), WordCountTool())
+
+        /** Hard cap on llama context size — KV-cache RAM stays bounded on phones. */
+        const val LOAD_CONTEXT_CAP = 4096
+
+        /**
+         * Headroom subtracted from `n_ctx` before computing how much
+         * conversation history to keep. Covers the assistant response
+         * (`Prompt.maxTokens` = 512) plus chat-template scaffolding
+         * (BOS/EOS, role markers, tool prelude expansion).
+         */
+        const val GENERATION_RESERVE = 768
+
+        /** Floor so even a small `n_ctx` still admits the latest user turn. */
+        const val MIN_HISTORY_BUDGET = 256
     }
 }

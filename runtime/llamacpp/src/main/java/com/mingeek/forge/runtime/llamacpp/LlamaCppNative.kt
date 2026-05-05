@@ -42,7 +42,15 @@ internal object LlamaCppNative {
     @JvmStatic external fun nativeSampleNext(ctxHandle: Long, samplerHandle: Long): Int
 
     @JvmStatic external fun nativeIsEog(modelHandle: Long, token: Int): Boolean
-    @JvmStatic external fun nativeTokenToPiece(modelHandle: Long, token: Int): String
+    /**
+     * Raw bytes for a token. Callers must reassemble complete UTF-8
+     * codepoints across successive tokens before decoding — a single
+     * token can hold only the leading bytes of a multi-byte sequence
+     * (Korean/CJK/emoji are routinely split across token boundaries by
+     * the BPE tokenizer). Decoding partial bytes via `NewStringUTF` on
+     * the JNI side aborts the process.
+     */
+    @JvmStatic external fun nativeTokenToPiece(modelHandle: Long, token: Int): ByteArray
 
     @JvmStatic external fun nativeGetMetadataString(modelHandle: Long, key: String): String?
 }

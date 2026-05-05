@@ -8,7 +8,7 @@ import com.mingeek.forge.data.catalog.huggingface.HuggingFaceCatalogSource
 import com.mingeek.forge.data.catalog.huggingface.HuggingFaceClient
 import com.mingeek.forge.agent.memory.MemoryStore
 import com.mingeek.forge.data.agents.FileMemoryStore
-import com.mingeek.forge.feature.agents.LlmAgent
+import com.mingeek.forge.feature.workflows.LlmAgent
 import com.mingeek.forge.feature.discover.CuratorAgentFactory
 import com.mingeek.forge.data.discovery.CollectionRepository
 import com.mingeek.forge.data.discovery.DiscoveryNotifier
@@ -117,8 +117,8 @@ class ForgeContainer(appContext: Context) {
 
     val recommender = UsagePatternRecommender()
 
-    val agentRunHistory: MemoryStore = FileMemoryStore(
-        File(appContext.filesDir, "agents/run_history.json"),
+    val workflowRunHistory: MemoryStore = FileMemoryStore(
+        File(appContext.filesDir, "workflows/run_history.json"),
     )
 
     val chatHistory: MemoryStore = FileMemoryStore(

@@ -43,28 +43,28 @@ class SettingsStore(context: Context) {
         .map { (it[TOOL_MAX_ITERATIONS] ?: DEFAULT_TOOL_MAX_ITERATIONS).coerceIn(1, 10) }
         .stateIn(scope, SharingStarted.Eagerly, DEFAULT_TOOL_MAX_ITERATIONS)
 
-    val agentsMode: StateFlow<String?> = ds.data
-        .map { it[AGENTS_MODE] }
+    val workflowsMode: StateFlow<String?> = ds.data
+        .map { it[WORKFLOWS_MODE] }
         .stateIn(scope, SharingStarted.Eagerly, null)
 
-    val agentsPipelineJson: StateFlow<String?> = ds.data
-        .map { it[AGENTS_PIPELINE_JSON] }
+    val workflowsPipelineJson: StateFlow<String?> = ds.data
+        .map { it[WORKFLOWS_PIPELINE_JSON] }
         .stateIn(scope, SharingStarted.Eagerly, null)
 
-    val agentsRouterJson: StateFlow<String?> = ds.data
-        .map { it[AGENTS_ROUTER_JSON] }
+    val workflowsRouterJson: StateFlow<String?> = ds.data
+        .map { it[WORKFLOWS_ROUTER_JSON] }
         .stateIn(scope, SharingStarted.Eagerly, null)
 
-    val agentsDebateJson: StateFlow<String?> = ds.data
-        .map { it[AGENTS_DEBATE_JSON] }
+    val workflowsDebateJson: StateFlow<String?> = ds.data
+        .map { it[WORKFLOWS_DEBATE_JSON] }
         .stateIn(scope, SharingStarted.Eagerly, null)
 
-    val agentsPlanExecuteJson: StateFlow<String?> = ds.data
-        .map { it[AGENTS_PLAN_EXECUTE_JSON] }
+    val workflowsPlanExecuteJson: StateFlow<String?> = ds.data
+        .map { it[WORKFLOWS_PLAN_EXECUTE_JSON] }
         .stateIn(scope, SharingStarted.Eagerly, null)
 
-    val agentsPresetsJson: StateFlow<String?> = ds.data
-        .map { it[AGENTS_PRESETS_JSON] }
+    val workflowsPresetsJson: StateFlow<String?> = ds.data
+        .map { it[WORKFLOWS_PRESETS_JSON] }
         .stateIn(scope, SharingStarted.Eagerly, null)
 
     val pinnedModelIds: StateFlow<Set<String>> = ds.data
@@ -117,28 +117,28 @@ class SettingsStore(context: Context) {
         ds.edit { it[TOOL_MAX_ITERATIONS] = value.coerceIn(1, 10) }
     }
 
-    suspend fun setAgentsMode(mode: String?) {
-        ds.edit { if (mode == null) it.remove(AGENTS_MODE) else it[AGENTS_MODE] = mode }
+    suspend fun setWorkflowsMode(mode: String?) {
+        ds.edit { if (mode == null) it.remove(WORKFLOWS_MODE) else it[WORKFLOWS_MODE] = mode }
     }
 
-    suspend fun setAgentsPipelineJson(json: String?) {
-        ds.edit { if (json == null) it.remove(AGENTS_PIPELINE_JSON) else it[AGENTS_PIPELINE_JSON] = json }
+    suspend fun setWorkflowsPipelineJson(json: String?) {
+        ds.edit { if (json == null) it.remove(WORKFLOWS_PIPELINE_JSON) else it[WORKFLOWS_PIPELINE_JSON] = json }
     }
 
-    suspend fun setAgentsRouterJson(json: String?) {
-        ds.edit { if (json == null) it.remove(AGENTS_ROUTER_JSON) else it[AGENTS_ROUTER_JSON] = json }
+    suspend fun setWorkflowsRouterJson(json: String?) {
+        ds.edit { if (json == null) it.remove(WORKFLOWS_ROUTER_JSON) else it[WORKFLOWS_ROUTER_JSON] = json }
     }
 
-    suspend fun setAgentsDebateJson(json: String?) {
-        ds.edit { if (json == null) it.remove(AGENTS_DEBATE_JSON) else it[AGENTS_DEBATE_JSON] = json }
+    suspend fun setWorkflowsDebateJson(json: String?) {
+        ds.edit { if (json == null) it.remove(WORKFLOWS_DEBATE_JSON) else it[WORKFLOWS_DEBATE_JSON] = json }
     }
 
-    suspend fun setAgentsPlanExecuteJson(json: String?) {
-        ds.edit { if (json == null) it.remove(AGENTS_PLAN_EXECUTE_JSON) else it[AGENTS_PLAN_EXECUTE_JSON] = json }
+    suspend fun setWorkflowsPlanExecuteJson(json: String?) {
+        ds.edit { if (json == null) it.remove(WORKFLOWS_PLAN_EXECUTE_JSON) else it[WORKFLOWS_PLAN_EXECUTE_JSON] = json }
     }
 
-    suspend fun setAgentsPresetsJson(json: String?) {
-        ds.edit { if (json == null) it.remove(AGENTS_PRESETS_JSON) else it[AGENTS_PRESETS_JSON] = json }
+    suspend fun setWorkflowsPresetsJson(json: String?) {
+        ds.edit { if (json == null) it.remove(WORKFLOWS_PRESETS_JSON) else it[WORKFLOWS_PRESETS_JSON] = json }
     }
 
     suspend fun togglePinnedModel(id: String) {
@@ -188,12 +188,12 @@ class SettingsStore(context: Context) {
         val TEMPERATURE: Preferences.Key<String> = stringPreferencesKey("default_temperature")
         val TOOLS_ENABLED: Preferences.Key<Boolean> = booleanPreferencesKey("tools_enabled")
         val TOOL_MAX_ITERATIONS: Preferences.Key<Int> = intPreferencesKey("tool_max_iterations")
-        val AGENTS_MODE: Preferences.Key<String> = stringPreferencesKey("agents_mode")
-        val AGENTS_PIPELINE_JSON: Preferences.Key<String> = stringPreferencesKey("agents_pipeline_json")
-        val AGENTS_ROUTER_JSON: Preferences.Key<String> = stringPreferencesKey("agents_router_json")
-        val AGENTS_DEBATE_JSON: Preferences.Key<String> = stringPreferencesKey("agents_debate_json")
-        val AGENTS_PLAN_EXECUTE_JSON: Preferences.Key<String> = stringPreferencesKey("agents_plan_execute_json")
-        val AGENTS_PRESETS_JSON: Preferences.Key<String> = stringPreferencesKey("agents_presets_json")
+        val WORKFLOWS_MODE: Preferences.Key<String> = stringPreferencesKey("workflows_mode")
+        val WORKFLOWS_PIPELINE_JSON: Preferences.Key<String> = stringPreferencesKey("workflows_pipeline_json")
+        val WORKFLOWS_ROUTER_JSON: Preferences.Key<String> = stringPreferencesKey("workflows_router_json")
+        val WORKFLOWS_DEBATE_JSON: Preferences.Key<String> = stringPreferencesKey("workflows_debate_json")
+        val WORKFLOWS_PLAN_EXECUTE_JSON: Preferences.Key<String> = stringPreferencesKey("workflows_plan_execute_json")
+        val WORKFLOWS_PRESETS_JSON: Preferences.Key<String> = stringPreferencesKey("workflows_presets_json")
         val PINNED_MODEL_IDS: Preferences.Key<Set<String>> = stringSetPreferencesKey("pinned_model_ids")
         val AUTO_CLEANUP_ENABLED: Preferences.Key<Boolean> = booleanPreferencesKey("auto_cleanup_enabled")
         val AUTO_CLEANUP_BUDGET_GB: Preferences.Key<Int> = intPreferencesKey("auto_cleanup_budget_gb")

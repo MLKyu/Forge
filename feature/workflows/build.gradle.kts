@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.mingeek.forge.feature.agents"
+    namespace = "com.mingeek.forge.feature.workflows"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1

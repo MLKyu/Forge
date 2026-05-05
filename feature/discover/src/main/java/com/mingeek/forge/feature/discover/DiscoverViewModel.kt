@@ -78,7 +78,7 @@ data class DiscoverUiState(
 
 /**
  * [DiscoverViewModel] takes a factory rather than referencing LlmAgent
- * directly. Keeps :feature:discover decoupled from :feature:agents — the
+ * directly. Keeps :feature:discover decoupled from :feature:workflows — the
  * factory is bound at the app DI layer where both can be reached.
  */
 typealias CuratorAgentFactory = (InstalledModel) -> Agent

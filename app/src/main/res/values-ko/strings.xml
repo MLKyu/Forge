@@ -5,7 +5,7 @@
     <string name="nav_library">라이브러리</string>
     <string name="nav_chat">채팅</string>
     <string name="nav_compare">비교</string>
-    <string name="nav_agents">에이전트</string>
+    <string name="nav_workflows">워크플로우</string>
     <string name="title_settings">설정</string>
     <string name="cd_back">뒤로</string>
     <string name="cd_settings">설정</string>

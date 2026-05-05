@@ -1,4 +1,4 @@
-package com.mingeek.forge.feature.agents
+package com.mingeek.forge.feature.workflows
 
 import android.content.ContentResolver
 import android.net.Uri
@@ -76,16 +76,16 @@ data class StepRun(
 )
 
 enum class PipelinePreset(@StringRes val displayNameRes: Int) {
-    SINGLE_SHOT(R.string.agents_preset_single_shot),
-    PLAN_EXECUTE(R.string.agents_preset_plan_execute),
-    PLAN_EXECUTE_CRITIC(R.string.agents_preset_plan_execute_critic),
+    SINGLE_SHOT(R.string.workflows_preset_single_shot),
+    PLAN_EXECUTE(R.string.workflows_preset_plan_execute),
+    PLAN_EXECUTE_CRITIC(R.string.workflows_preset_plan_execute_critic),
 }
 
 enum class WorkflowMode(@StringRes val displayNameRes: Int) {
-    PIPELINE(R.string.agents_mode_pipeline),
-    ROUTER(R.string.agents_mode_router),
-    DEBATE(R.string.agents_mode_debate),
-    PLAN_EXECUTE(R.string.agents_mode_plan_execute),
+    PIPELINE(R.string.workflows_mode_pipeline),
+    ROUTER(R.string.workflows_mode_router),
+    DEBATE(R.string.workflows_mode_debate),
+    PLAN_EXECUTE(R.string.workflows_mode_plan_execute),
 }
 
 @JsonClass(generateAdapter = true)
@@ -218,7 +218,7 @@ data class AgentsUiState(
     val pastRuns: List<PastRun> = emptyList(),
 )
 
-class AgentsViewModel(
+class WorkflowsViewModel(
     private val storage: ModelStorage,
     private val registry: RuntimeRegistry,
     private val settingsStore: SettingsStore,
@@ -309,16 +309,16 @@ class AgentsViewModel(
     )
 
     private suspend fun restorePersistedConfig() {
-        val savedMode = settingsStore.agentsMode.first()
-        val savedSteps = settingsStore.agentsPipelineJson.first()
+        val savedMode = settingsStore.workflowsMode.first()
+        val savedSteps = settingsStore.workflowsPipelineJson.first()
             ?.let { runCatching { stepsAdapter.fromJson(it) }.getOrNull() }
-        val savedRouter = settingsStore.agentsRouterJson.first()
+        val savedRouter = settingsStore.workflowsRouterJson.first()
             ?.let { runCatching { routerAdapter.fromJson(it) }.getOrNull() }
-        val savedDebate = settingsStore.agentsDebateJson.first()
+        val savedDebate = settingsStore.workflowsDebateJson.first()
             ?.let { runCatching { debateAdapter.fromJson(it) }.getOrNull() }
-        val savedPlanExecute = settingsStore.agentsPlanExecuteJson.first()
+        val savedPlanExecute = settingsStore.workflowsPlanExecuteJson.first()
             ?.let { runCatching { planExecuteAdapter.fromJson(it) }.getOrNull() }
-        val savedPresets = settingsStore.agentsPresetsJson.first()
+        val savedPresets = settingsStore.workflowsPresetsJson.first()
             ?.let { runCatching { presetsAdapter.fromJson(it) }.getOrNull() }
 
         _state.update { current ->
@@ -334,12 +334,12 @@ class AgentsViewModel(
     }
 
     private suspend fun persist(snap: PersistableSnapshot) {
-        settingsStore.setAgentsMode(snap.mode.name)
-        settingsStore.setAgentsPipelineJson(stepsAdapter.toJson(snap.steps))
-        settingsStore.setAgentsRouterJson(routerAdapter.toJson(snap.router))
-        settingsStore.setAgentsDebateJson(debateAdapter.toJson(snap.debate))
-        settingsStore.setAgentsPlanExecuteJson(planExecuteAdapter.toJson(snap.planExecute))
-        settingsStore.setAgentsPresetsJson(presetsAdapter.toJson(snap.presets))
+        settingsStore.setWorkflowsMode(snap.mode.name)
+        settingsStore.setWorkflowsPipelineJson(stepsAdapter.toJson(snap.steps))
+        settingsStore.setWorkflowsRouterJson(routerAdapter.toJson(snap.router))
+        settingsStore.setWorkflowsDebateJson(debateAdapter.toJson(snap.debate))
+        settingsStore.setWorkflowsPlanExecuteJson(planExecuteAdapter.toJson(snap.planExecute))
+        settingsStore.setWorkflowsPresetsJson(presetsAdapter.toJson(snap.presets))
     }
 
     fun setStepModel(agentId: String, modelId: String?) {
@@ -691,12 +691,12 @@ class AgentsViewModel(
             p to model
         }
         if (participantPairs.size != d.participants.size) {
-            _state.update { it.copy(status = RunStatus.Failed(R.string.agents_error_pick_model_per_participant)) }
+            _state.update { it.copy(status = RunStatus.Failed(R.string.workflows_error_pick_model_per_participant)) }
             return
         }
         val moderatorModel = if (d.moderatorEnabled) {
             current.installed.firstOrNull { it.id == d.moderatorModelId } ?: run {
-                _state.update { it.copy(status = RunStatus.Failed(R.string.agents_error_pick_moderator)) }
+                _state.update { it.copy(status = RunStatus.Failed(R.string.workflows_error_pick_moderator)) }
                 return
             }
         } else null
@@ -769,12 +769,12 @@ class AgentsViewModel(
         val plannerModel = current.installed.firstOrNull { it.id == pe.plannerModelId }
         val executorModel = current.installed.firstOrNull { it.id == pe.executorModelId }
         if (plannerModel == null || executorModel == null) {
-            _state.update { it.copy(status = RunStatus.Failed(R.string.agents_error_pick_planner_executor)) }
+            _state.update { it.copy(status = RunStatus.Failed(R.string.workflows_error_pick_planner_executor)) }
             return
         }
         val criticModel = if (pe.criticEnabled) {
             current.installed.firstOrNull { it.id == pe.criticModelId } ?: run {
-                _state.update { it.copy(status = RunStatus.Failed(R.string.agents_error_pick_critic)) }
+                _state.update { it.copy(status = RunStatus.Failed(R.string.workflows_error_pick_critic)) }
                 return
             }
         } else null
@@ -848,7 +848,7 @@ class AgentsViewModel(
             step to model
         }
         if (configured.size != current.steps.size) {
-            _state.update { it.copy(status = RunStatus.Failed(R.string.agents_error_pick_model_per_step)) }
+            _state.update { it.copy(status = RunStatus.Failed(R.string.workflows_error_pick_model_per_step)) }
             return
         }
 
@@ -888,7 +888,7 @@ class AgentsViewModel(
         val router = current.router
         val routerModel = current.installed.firstOrNull { it.id == router.routerModelId }
         if (routerModel == null) {
-            _state.update { it.copy(status = RunStatus.Failed(R.string.agents_error_pick_router)) }
+            _state.update { it.copy(status = RunStatus.Failed(R.string.workflows_error_pick_router)) }
             return
         }
         val routePairs = router.routes.mapNotNull { route ->
@@ -896,7 +896,7 @@ class AgentsViewModel(
             route to model
         }
         if (routePairs.size != router.routes.size) {
-            _state.update { it.copy(status = RunStatus.Failed(R.string.agents_error_pick_model_per_route)) }
+            _state.update { it.copy(status = RunStatus.Failed(R.string.workflows_error_pick_model_per_route)) }
             return
         }
 
@@ -962,7 +962,7 @@ class AgentsViewModel(
                 }
             } catch (t: Throwable) {
                 _state.update {
-                    it.copy(status = RunStatus.Failed(R.string.agents_error_workflow_failed, t.message))
+                    it.copy(status = RunStatus.Failed(R.string.workflows_error_workflow_failed, t.message))
                 }
             } finally {
                 // Release every session this workflow loaded — including on
@@ -1026,7 +1026,7 @@ class AgentsViewModel(
                 viewModelScope.launch { recordRun(event.finalOutput) }
             }
             is OrchestratorEvent.Failed -> _state.update {
-                it.copy(status = RunStatus.Failed(R.string.agents_error_workflow_failed, event.message))
+                it.copy(status = RunStatus.Failed(R.string.workflows_error_workflow_failed, event.message))
             }
         }
     }

@@ -1,4 +1,4 @@
-package com.mingeek.forge.feature.agents
+package com.mingeek.forge.feature.workflows
 
 import com.mingeek.forge.agent.core.Agent
 import com.mingeek.forge.agent.core.AgentContext
@@ -100,10 +100,24 @@ class LlmAgent(
         }
         turns += ChatTemplate.Turn(ChatTemplate.Turn.Role.USER, userText)
 
+        // chars≈tokens budgeting heuristic — see the ChatViewModel
+        // PromptZones comment for the rationale. LlmAgent is single-turn
+        // (system + user), so there's no "older history" we can drop;
+        // the only thing we can do is bail out cleanly when the input
+        // alone (or a tool-loop accumulation) would overflow n_ctx.
+        val effectiveCtx = model.contextLength.coerceAtMost(LOAD_CONTEXT_CAP)
+        val budget = (effectiveCtx - maxTokens - TEMPLATE_RESERVE)
+            .coerceAtLeast(MIN_PROMPT_BUDGET)
+        if (turns.sumOf { it.content.length } > budget) {
+            emit(AgentEvent.Failed("input too long for model context window"))
+            return
+        }
+
         var iteration = 0
         while (true) {
             val promptText = template.format(turns, addAssistantPrefix = true)
             val output = StringBuilder()
+            var finishReason: Token.FinishReason? = null
             runtime.generate(
                 loaded.sessionId,
                 Prompt(
@@ -118,9 +132,17 @@ class LlmAgent(
                         output.append(token.piece)
                         emit(AgentEvent.Token(token.piece))
                     }
-                    is Token.Done -> { /* handled below */ }
+                    is Token.Done -> { finishReason = token.finishReason }
                     is Token.ToolCall -> { /* runtime-emitted tool calls unused */ }
                 }
+            }
+
+            // Promote runtime-level errors (KV cache exhausted, decode
+            // failure) into a Failed event so the caller can show a
+            // useful message instead of treating partial output as Final.
+            if (finishReason == Token.FinishReason.ERROR) {
+                emit(AgentEvent.Failed("inference failed (likely n_ctx overflow)"))
+                return
             }
 
             val rendered = output.toString().trim()
@@ -159,6 +181,15 @@ class LlmAgent(
                 content = ToolCallProtocol.renderResult(result),
             )
 
+            // Bail before kicking off another generate that would overflow.
+            // Without this, the runtime would just emit Token.Done(ERROR)
+            // and we'd surface it above — same outcome but slower (a wasted
+            // prefill) and the user gets a less specific reason.
+            if (turns.sumOf { it.content.length } > budget) {
+                emit(AgentEvent.Failed("tool loop ran out of context room"))
+                return
+            }
+
             if (iteration >= maxToolIterations) {
                 emit(AgentEvent.Failed("Tool call loop exceeded $maxToolIterations iterations"))
                 return
@@ -167,7 +198,7 @@ class LlmAgent(
     }
 
     private suspend fun acquireSession(): Pair<InferenceRuntime, LoadedModel>? {
-        val config = LoadConfig(contextLength = model.contextLength.coerceAtMost(2048))
+        val config = LoadConfig(contextLength = model.contextLength.coerceAtMost(LOAD_CONTEXT_CAP))
         sharedSessions?.let { return it.acquire(model, config) }
 
         val runtimeId = runCatching { RuntimeId.valueOf(model.recommendedRuntime) }
@@ -178,5 +209,20 @@ class LlmAgent(
             config,
         )
         return runtime to loaded
+    }
+
+    private companion object {
+        /**
+         * Cap on llama context size. Tighter than ChatViewModel's 4096
+         * because Workflow steps run multiple agents in series and each
+         * one carries its own KV-cache RAM.
+         */
+        const val LOAD_CONTEXT_CAP = 2048
+
+        /** Headroom for chat-template scaffolding (BOS/EOS, role markers). */
+        const val TEMPLATE_RESERVE = 128
+
+        /** Floor so very small `n_ctx` still admits a basic prompt. */
+        const val MIN_PROMPT_BUDGET = 256
     }
 }

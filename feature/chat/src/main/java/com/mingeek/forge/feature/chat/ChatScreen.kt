@@ -1,7 +1,9 @@
 package com.mingeek.forge.feature.chat
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +30,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -35,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mingeek.forge.data.storage.InstalledModel
@@ -63,6 +68,13 @@ fun ChatScreen(
         if (uri != null) viewModel.export(uri, resolver)
     }
 
+    // From a loaded chat, back should land on the model picker (the
+    // virtual "previous screen" within this tab) rather than popping the
+    // whole nav stack — auto-load jumps Idle → Ready on tab entry, so
+    // without this the picker is unreachable via back.
+    BackHandler(enabled = state.sessionState is SessionState.Ready) {
+        viewModel.unload()
+    }
     Column(modifier = modifier.fillMaxSize()) {
         when (val s = state.sessionState) {
             SessionState.Idle, is SessionState.Failed ->
@@ -294,9 +306,26 @@ private fun ChatBody(
     var showSwapSheet by remember { mutableStateOf(false) }
     var showConversationsSheet by remember { mutableStateOf(false) }
 
+    // Stick to the *bottom* of the last message — not its top. While the
+    // assistant is streaming a long answer, `animateScrollToItem(lastIndex)`
+    // alone aligns the bubble's top with the viewport top, so any text
+    // beyond viewport height stays clipped below until generation ends. We
+    // first ensure the item is on screen, then push the viewport forward
+    // by however much the bubble's bottom overflows.
     LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.content?.length) {
-        if (state.messages.isNotEmpty()) {
-            listState.animateScrollToItem(state.messages.lastIndex)
+        if (state.messages.isEmpty()) return@LaunchedEffect
+        val lastIndex = state.messages.lastIndex
+        val visibleLast = listState.layoutInfo.visibleItemsInfo.find { it.index == lastIndex }
+        if (visibleLast == null) {
+            listState.animateScrollToItem(lastIndex)
+        }
+        // Re-read layout info after potential scroll above; the item might
+        // be visible now but its bottom can still overflow the viewport.
+        val info = listState.layoutInfo
+        val item = info.visibleItemsInfo.find { it.index == lastIndex } ?: return@LaunchedEffect
+        val overflow = (item.offset + item.size) - info.viewportEndOffset
+        if (overflow > 0) {
+            listState.scrollBy(overflow.toFloat())
         }
     }
 
@@ -473,7 +502,7 @@ private fun ChatBody(
 
         HorizontalDivider()
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -489,20 +518,26 @@ private fun ChatBody(
                 enabled = !state.isGenerating,
                 modifier = Modifier.weight(1f),
             )
-            if (state.isGenerating) {
-                OutlinedButton(
-                    onClick = onCancel,
-                    modifier = Modifier.heightIn(min = 40.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                ) { Text(stringResource(R.string.chat_stop)) }
-            } else {
-                Button(
-                    onClick = onSend,
-                    enabled = state.draft.isNotBlank(),
-                    modifier = Modifier.heightIn(min = 40.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 4.dp),
-                ) {
-                    Text(stringResource(R.string.chat_send))
+            // Disable the 48dp minimum-touch-target enforcement so the
+            // button's layout height equals its visible 40dp surface —
+            // otherwise Bottom alignment makes the input look ~4dp lower
+            // than the button (the gap is invisible touch-target padding).
+            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+                if (state.isGenerating) {
+                    OutlinedButton(
+                        onClick = onCancel,
+                        modifier = Modifier.heightIn(min = 40.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    ) { Text(stringResource(R.string.chat_stop)) }
+                } else {
+                    Button(
+                        onClick = onSend,
+                        enabled = state.draft.isNotBlank(),
+                        modifier = Modifier.heightIn(min = 40.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                    ) {
+                        Text(stringResource(R.string.chat_send))
+                    }
                 }
             }
         }
