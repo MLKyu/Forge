@@ -89,6 +89,17 @@
 -dontwarn androidx.datastore.**
 
 # =============================================================================
+# Room — generated *_Impl classes are loaded via reflection
+# =============================================================================
+# WorkManager's WorkManagerInitializer instantiates androidx.work.impl.WorkDatabase_Impl
+# via Class.getDeclaredConstructor(); without this rule R8 strips the no-arg ctor
+# and startup crashes with NoSuchMethodException on InitializationProvider.onCreate.
+-keep class * extends androidx.room.RoomDatabase {
+    <init>();
+}
+-dontwarn androidx.room.paging.**
+
+# =============================================================================
 # Compose / Lifecycle / Navigation — generally R8-friendly, keep just in case.
 # =============================================================================
 -keep class androidx.compose.runtime.** { *; }
