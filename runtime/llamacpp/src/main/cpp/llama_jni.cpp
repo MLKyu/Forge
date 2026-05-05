@@ -1,5 +1,6 @@
 #include <jni.h>
 #include <android/log.h>
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -112,6 +113,17 @@ Java_com_mingeek_forge_runtime_llamacpp_LlamaCppNative_nativeNewSampler(
     llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
     llama_sampler* chain = llama_sampler_chain_init(sparams);
 
+    // Repetition penalty over the last 64 tokens. Without this small models
+    // collapse into single-character / single-phrase loops on long contexts
+    // (especially Korean / CJK where one codepoint takes multiple tokens).
+    // 1.1 is the standard default used by ollama / oobabooga / koboldcpp;
+    // raise to 1.15-1.3 for stronger anti-repetition at the cost of fluency.
+    llama_sampler_chain_add(chain, llama_sampler_init_penalties(
+        /*penalty_last_n=*/  64,
+        /*penalty_repeat=*/  1.1f,
+        /*penalty_freq=*/    0.0f,
+        /*penalty_present=*/ 0.0f));
+
     if (top_k > 0) {
         llama_sampler_chain_add(chain, llama_sampler_init_top_k(top_k));
     }
@@ -175,11 +187,22 @@ Java_com_mingeek_forge_runtime_llamacpp_LlamaCppNative_nativeDecodeTokens(
     std::vector<llama_token> tokens(n);
     env->GetIntArrayRegion(jtokens, 0, n, reinterpret_cast<jint*>(tokens.data()));
 
-    llama_batch batch = llama_batch_get_one(tokens.data(), (int32_t) tokens.size());
-    int rc = llama_decode(ctx, batch);
-    if (rc != 0) {
-        LOGE("llama_decode prompt failed: %d", rc);
-        return JNI_FALSE;
+    // llama_decode rejects (and ggml_abort's) any batch larger than the
+    // context's n_batch — typically 512. A multi-turn Korean conversation
+    // crosses 512 prompt tokens easily, so chunk the prefill into n_batch
+    // slices. This is the canonical pattern in llama.cpp examples.
+    const int32_t n_batch = (int32_t) llama_n_batch(ctx);
+    const int32_t total = (int32_t) tokens.size();
+    int32_t pos = 0;
+    while (pos < total) {
+        const int32_t n_eval = std::min(total - pos, n_batch);
+        llama_batch batch = llama_batch_get_one(tokens.data() + pos, n_eval);
+        int rc = llama_decode(ctx, batch);
+        if (rc != 0) {
+            LOGE("llama_decode prompt failed at pos=%d n_eval=%d rc=%d", pos, n_eval, rc);
+            return JNI_FALSE;
+        }
+        pos += n_eval;
     }
     return JNI_TRUE;
 }
@@ -206,22 +229,33 @@ Java_com_mingeek_forge_runtime_llamacpp_LlamaCppNative_nativeIsEog(
     return llama_vocab_is_eog(vocab, (llama_token) token) ? JNI_TRUE : JNI_FALSE;
 }
 
-JNIEXPORT jstring JNICALL
+// Returns the raw bytes for a token, NOT a jstring. A single token can hold
+// the leading bytes of a multi-byte UTF-8 codepoint (Korean/CJK/emoji split
+// across token boundaries by the BPE tokenizer), and NewStringUTF aborts
+// the process on any invalid Modified-UTF-8 input. Kotlin reassembles
+// complete codepoints across successive tokens before decoding.
+JNIEXPORT jbyteArray JNICALL
 Java_com_mingeek_forge_runtime_llamacpp_LlamaCppNative_nativeTokenToPiece(
     JNIEnv* env, jclass /*clz*/, jlong model_h, jint token) {
     auto* model = reinterpret_cast<llama_model*>(model_h);
-    if (!model) return env->NewStringUTF("");
+    if (!model) return env->NewByteArray(0);
     const llama_vocab* vocab = llama_model_get_vocab(model);
 
     char buf[256];
     int n = llama_token_to_piece(vocab, (llama_token) token, buf, sizeof(buf), 0, true);
+    const char* data = buf;
+    std::vector<char> big;
     if (n < 0) {
-        std::vector<char> big(-n + 1);
+        big.resize(-n);
         n = llama_token_to_piece(vocab, (llama_token) token, big.data(), (int) big.size(), 0, true);
-        if (n < 0) return env->NewStringUTF("");
-        return env->NewStringUTF(std::string(big.data(), n).c_str());
+        if (n < 0) return env->NewByteArray(0);
+        data = big.data();
     }
-    return env->NewStringUTF(std::string(buf, n).c_str());
+    jbyteArray out = env->NewByteArray(n);
+    if (out != nullptr && n > 0) {
+        env->SetByteArrayRegion(out, 0, n, reinterpret_cast<const jbyte*>(data));
+    }
+    return out;
 }
 
 JNIEXPORT jboolean JNICALL

@@ -86,7 +86,7 @@ dependencies {
     implementation(project(":feature:catalog"))
     implementation(project(":feature:chat"))
     implementation(project(":feature:compare"))
-    implementation(project(":feature:agents"))
+    implementation(project(":feature:workflows"))
     implementation(project(":feature:settings"))
 
     // Core

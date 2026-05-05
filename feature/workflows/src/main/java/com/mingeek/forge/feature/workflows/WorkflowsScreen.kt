@@ -1,4 +1,4 @@
-package com.mingeek.forge.feature.agents
+package com.mingeek.forge.feature.workflows
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -33,11 +33,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mingeek.forge.data.storage.InstalledModel
-import com.mingeek.forge.feature.agents.R
+import com.mingeek.forge.feature.workflows.R
 
 @Composable
-fun AgentsScreen(
-    viewModel: AgentsViewModel,
+fun WorkflowsScreen(
+    viewModel: WorkflowsViewModel,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -60,33 +60,33 @@ fun AgentsScreen(
             when (state.mode) {
                 WorkflowMode.PIPELINE -> {
                     val n = state.steps.size
-                    if (n == 1) stringResource(R.string.agents_header_pipeline_one, n)
-                    else stringResource(R.string.agents_header_pipeline_many, n)
+                    if (n == 1) stringResource(R.string.workflows_header_pipeline_one, n)
+                    else stringResource(R.string.workflows_header_pipeline_many, n)
                 }
                 WorkflowMode.ROUTER -> {
                     val n = state.router.routes.size
-                    if (n == 1) stringResource(R.string.agents_header_router_one, n)
-                    else stringResource(R.string.agents_header_router_many, n)
+                    if (n == 1) stringResource(R.string.workflows_header_router_one, n)
+                    else stringResource(R.string.workflows_header_router_many, n)
                 }
                 WorkflowMode.DEBATE -> {
                     val n = state.debate.participants.size
                     if (state.debate.moderatorEnabled)
-                        stringResource(R.string.agents_header_debate_with_moderator, n)
-                    else stringResource(R.string.agents_header_debate, n)
+                        stringResource(R.string.workflows_header_debate_with_moderator, n)
+                    else stringResource(R.string.workflows_header_debate, n)
                 }
                 WorkflowMode.PLAN_EXECUTE ->
                     if (state.planExecute.criticEnabled)
-                        stringResource(R.string.agents_header_plan_execute_with_critic)
-                    else stringResource(R.string.agents_header_plan_execute)
+                        stringResource(R.string.workflows_header_plan_execute_with_critic)
+                    else stringResource(R.string.workflows_header_plan_execute)
             },
             style = MaterialTheme.typography.headlineSmall,
         )
         Text(
             when (state.mode) {
-                WorkflowMode.PIPELINE -> stringResource(R.string.agents_subtitle_pipeline)
-                WorkflowMode.ROUTER -> stringResource(R.string.agents_subtitle_router)
-                WorkflowMode.DEBATE -> stringResource(R.string.agents_subtitle_debate)
-                WorkflowMode.PLAN_EXECUTE -> stringResource(R.string.agents_subtitle_plan_execute)
+                WorkflowMode.PIPELINE -> stringResource(R.string.workflows_subtitle_pipeline)
+                WorkflowMode.ROUTER -> stringResource(R.string.workflows_subtitle_router)
+                WorkflowMode.DEBATE -> stringResource(R.string.workflows_subtitle_debate)
+                WorkflowMode.PLAN_EXECUTE -> stringResource(R.string.workflows_subtitle_plan_execute)
             },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
@@ -94,13 +94,13 @@ fun AgentsScreen(
 
         if (state.installed.isEmpty()) {
             Text(
-                stringResource(R.string.agents_no_models_installed),
+                stringResource(R.string.workflows_no_models_installed),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             return@Column
         }
 
-        Text(stringResource(R.string.agents_label_mode), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.workflows_label_mode), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             for (mode in WorkflowMode.entries) {
                 androidx.compose.material3.FilterChip(
@@ -121,7 +121,7 @@ fun AgentsScreen(
         )
 
         if (state.mode == WorkflowMode.PIPELINE) {
-            Text(stringResource(R.string.agents_label_presets), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.workflows_label_presets), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth(),
@@ -157,7 +157,7 @@ fun AgentsScreen(
                 enabled = state.status != RunStatus.Running,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(stringResource(R.string.agents_add_step))
+                Text(stringResource(R.string.workflows_add_step))
             }
         } else if (state.mode == WorkflowMode.ROUTER) {
             RouterCard(
@@ -182,7 +182,7 @@ fun AgentsScreen(
                 enabled = state.status != RunStatus.Running,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(stringResource(R.string.agents_add_route))
+                Text(stringResource(R.string.workflows_add_route))
             }
         } else if (state.mode == WorkflowMode.DEBATE) {
             state.debate.participants.forEachIndexed { index, p ->
@@ -201,7 +201,7 @@ fun AgentsScreen(
                 enabled = state.status != RunStatus.Running,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(stringResource(R.string.agents_add_participant))
+                Text(stringResource(R.string.workflows_add_participant))
             }
             DebateRoundsCard(
                 rounds = state.debate.maxRounds,
@@ -231,7 +231,7 @@ fun AgentsScreen(
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.agents_user_prompt), fontWeight = FontWeight.Medium)
+                Text(stringResource(R.string.workflows_user_prompt), fontWeight = FontWeight.Medium)
                 OutlinedTextField(
                     value = state.userPrompt,
                     onValueChange = viewModel::setUserPrompt,
@@ -242,7 +242,7 @@ fun AgentsScreen(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (state.status == RunStatus.Running) {
-                        OutlinedButton(onClick = viewModel::cancel) { Text(stringResource(R.string.agents_button_stop)) }
+                        OutlinedButton(onClick = viewModel::cancel) { Text(stringResource(R.string.workflows_button_stop)) }
                     } else {
                         val readyToRun = state.userPrompt.isNotBlank() && when (state.mode) {
                             WorkflowMode.PIPELINE -> state.steps.all { it.modelId != null }
@@ -255,10 +255,10 @@ fun AgentsScreen(
                                 (!state.planExecute.criticEnabled || state.planExecute.criticModelId != null)
                         }
                         val runLabel = when (state.mode) {
-                            WorkflowMode.PIPELINE -> stringResource(R.string.agents_button_run_pipeline)
-                            WorkflowMode.ROUTER -> stringResource(R.string.agents_button_run_router)
-                            WorkflowMode.DEBATE -> stringResource(R.string.agents_button_run_debate)
-                            WorkflowMode.PLAN_EXECUTE -> stringResource(R.string.agents_button_run_plan_execute)
+                            WorkflowMode.PIPELINE -> stringResource(R.string.workflows_button_run_pipeline)
+                            WorkflowMode.ROUTER -> stringResource(R.string.workflows_button_run_router)
+                            WorkflowMode.DEBATE -> stringResource(R.string.workflows_button_run_debate)
+                            WorkflowMode.PLAN_EXECUTE -> stringResource(R.string.workflows_button_run_plan_execute)
                         }
                         Button(
                             onClick = viewModel::run,
@@ -276,7 +276,7 @@ fun AgentsScreen(
                         },
                         enabled = state.runs.any { it.output.isNotEmpty() } &&
                             state.status != RunStatus.Running,
-                    ) { Text(stringResource(R.string.agents_button_copy)) }
+                    ) { Text(stringResource(R.string.workflows_button_copy)) }
                     OutlinedButton(
                         onClick = {
                             val name = when (state.mode) {
@@ -289,7 +289,7 @@ fun AgentsScreen(
                         },
                         enabled = state.runs.any { it.output.isNotEmpty() } &&
                             state.status != RunStatus.Running,
-                    ) { Text(stringResource(R.string.agents_button_export)) }
+                    ) { Text(stringResource(R.string.workflows_button_export)) }
                 }
                 StatusLine(state.status)
             }
@@ -303,7 +303,7 @@ fun AgentsScreen(
         }
 
         if (state.runs.isNotEmpty()) {
-            Text(stringResource(R.string.agents_output), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.workflows_output), style = MaterialTheme.typography.titleMedium)
             val isMultiRound = state.runs.any { it.stepId.contains("-r") }
             state.runs.forEachIndexed { index, run ->
                 RunCard(index, run, isMultiRound)
@@ -318,7 +318,7 @@ fun AgentsScreen(
                     if (!matched) {
                         val firstKey = state.router.routes.firstOrNull()?.key ?: "—"
                         Text(
-                            stringResource(R.string.agents_router_fallback_warning, firstKey),
+                            stringResource(R.string.workflows_router_fallback_warning, firstKey),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )
@@ -349,18 +349,18 @@ private fun StepCard(
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    stringResource(R.string.agents_step_index, index + 1),
+                    stringResource(R.string.workflows_step_index, index + 1),
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f),
                 )
-                androidx.compose.material3.TextButton(onClick = onMoveUp, enabled = canMoveUp) { Text(stringResource(R.string.agents_move_up)) }
-                androidx.compose.material3.TextButton(onClick = onMoveDown, enabled = canMoveDown) { Text(stringResource(R.string.agents_move_down)) }
+                androidx.compose.material3.TextButton(onClick = onMoveUp, enabled = canMoveUp) { Text(stringResource(R.string.workflows_move_up)) }
+                androidx.compose.material3.TextButton(onClick = onMoveDown, enabled = canMoveDown) { Text(stringResource(R.string.workflows_move_down)) }
                 if (canRemove) {
-                    androidx.compose.material3.TextButton(onClick = onRemove) { Text(stringResource(R.string.agents_remove)) }
+                    androidx.compose.material3.TextButton(onClick = onRemove) { Text(stringResource(R.string.workflows_remove)) }
                 }
             }
             DeletedModelNotice(step.modelId, installed)
-            Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.workflows_pick_a_model), style = MaterialTheme.typography.bodySmall)
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -369,7 +369,7 @@ private fun StepCard(
                     AssistChip(
                         onClick = { onPickModel(model) },
                         label = {
-                            val prefix = if (model.id == step.modelId) stringResource(R.string.agents_check_mark_prefix) else ""
+                            val prefix = if (model.id == step.modelId) stringResource(R.string.workflows_check_mark_prefix) else ""
                             Text("$prefix${model.displayName.takeLast(36)}")
                         },
                     )
@@ -380,7 +380,7 @@ private fun StepCard(
                 value = step.systemPrompt,
                 onValueChange = onSystemChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.agents_label_system_prompt)) },
+                label = { Text(stringResource(R.string.workflows_label_system_prompt)) },
                 minLines = 2,
                 maxLines = 4,
             )
@@ -388,11 +388,11 @@ private fun StepCard(
                 value = step.promptTemplate,
                 onValueChange = onTemplateChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.agents_label_prompt_template)) },
+                label = { Text(stringResource(R.string.workflows_label_prompt_template)) },
                 minLines = 1,
                 maxLines = 3,
             )
-            Text(stringResource(R.string.agents_max_output_tokens, step.maxTokens), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.workflows_max_output_tokens, step.maxTokens), style = MaterialTheme.typography.bodySmall)
             androidx.compose.material3.Slider(
                 value = step.maxTokens.toFloat(),
                 onValueChange = { onMaxTokensChange(it.toInt()) },
@@ -412,14 +412,14 @@ private fun RouterCard(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.agents_router_title), fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.workflows_router_title), fontWeight = FontWeight.Medium)
             Text(
-                stringResource(R.string.agents_router_description),
+                stringResource(R.string.workflows_router_description),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             DeletedModelNotice(router.routerModelId, installed)
-            Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.workflows_pick_a_model), style = MaterialTheme.typography.bodySmall)
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -428,7 +428,7 @@ private fun RouterCard(
                     AssistChip(
                         onClick = { onPickRouterModel(model) },
                         label = {
-                            val prefix = if (model.id == router.routerModelId) stringResource(R.string.agents_check_mark_prefix) else ""
+                            val prefix = if (model.id == router.routerModelId) stringResource(R.string.workflows_check_mark_prefix) else ""
                             Text("$prefix${model.displayName.takeLast(36)}")
                         },
                     )
@@ -439,7 +439,7 @@ private fun RouterCard(
                 value = router.routerSystemPrompt,
                 onValueChange = onRouterSystemChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.agents_label_router_system_prompt)) },
+                label = { Text(stringResource(R.string.workflows_label_router_system_prompt)) },
                 minLines = 2,
                 maxLines = 4,
             )
@@ -460,20 +460,20 @@ private fun RouteCard(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.agents_route_title), fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.workflows_route_title), fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 if (canRemove) {
-                    androidx.compose.material3.TextButton(onClick = onRemove) { Text(stringResource(R.string.agents_remove)) }
+                    androidx.compose.material3.TextButton(onClick = onRemove) { Text(stringResource(R.string.workflows_remove)) }
                 }
             }
             OutlinedTextField(
                 value = route.key,
                 onValueChange = onKeyChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.agents_label_match_key)) },
+                label = { Text(stringResource(R.string.workflows_label_match_key)) },
                 singleLine = true,
             )
             DeletedModelNotice(route.modelId, installed)
-            Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.workflows_pick_a_model), style = MaterialTheme.typography.bodySmall)
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -482,7 +482,7 @@ private fun RouteCard(
                     AssistChip(
                         onClick = { onPickModel(model) },
                         label = {
-                            val prefix = if (model.id == route.modelId) stringResource(R.string.agents_check_mark_prefix) else ""
+                            val prefix = if (model.id == route.modelId) stringResource(R.string.workflows_check_mark_prefix) else ""
                             Text("$prefix${model.displayName.takeLast(36)}")
                         },
                     )
@@ -493,7 +493,7 @@ private fun RouteCard(
                 value = route.systemPrompt,
                 onValueChange = onSystemChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.agents_label_route_system_prompt)) },
+                label = { Text(stringResource(R.string.workflows_label_route_system_prompt)) },
                 minLines = 2,
                 maxLines = 4,
             )
@@ -514,13 +514,13 @@ private fun ParticipantCard(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.agents_participant_index, index + 1), fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.workflows_participant_index, index + 1), fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 if (canRemove) {
-                    androidx.compose.material3.TextButton(onClick = onRemove) { Text(stringResource(R.string.agents_remove)) }
+                    androidx.compose.material3.TextButton(onClick = onRemove) { Text(stringResource(R.string.workflows_remove)) }
                 }
             }
             DeletedModelNotice(participant.modelId, installed)
-            Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.workflows_pick_a_model), style = MaterialTheme.typography.bodySmall)
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -529,7 +529,7 @@ private fun ParticipantCard(
                     AssistChip(
                         onClick = { onPickModel(model) },
                         label = {
-                            val prefix = if (model.id == participant.modelId) stringResource(R.string.agents_check_mark_prefix) else ""
+                            val prefix = if (model.id == participant.modelId) stringResource(R.string.workflows_check_mark_prefix) else ""
                             Text("$prefix${model.displayName.takeLast(36)}")
                         },
                     )
@@ -540,7 +540,7 @@ private fun ParticipantCard(
                 value = participant.systemPrompt,
                 onValueChange = onSystemChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.agents_label_stance_system_prompt)) },
+                label = { Text(stringResource(R.string.workflows_label_stance_system_prompt)) },
                 minLines = 2,
                 maxLines = 4,
             )
@@ -552,13 +552,13 @@ private fun ParticipantCard(
 private fun DebateRoundsCard(rounds: Int, onRoundsChange: (Int) -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.agents_rounds_title), fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.workflows_rounds_title), fontWeight = FontWeight.Medium)
             Text(
-                stringResource(R.string.agents_rounds_description),
+                stringResource(R.string.workflows_rounds_description),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text(stringResource(R.string.agents_max_rounds, rounds), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.workflows_max_rounds, rounds), style = MaterialTheme.typography.bodySmall)
             androidx.compose.material3.Slider(
                 value = rounds.toFloat(),
                 onValueChange = { onRoundsChange(it.toInt()) },
@@ -580,7 +580,7 @@ private fun ModeratorCard(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.agents_moderator_title), fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.workflows_moderator_title), fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 androidx.compose.material3.Switch(
                     checked = debate.moderatorEnabled,
                     onCheckedChange = onToggle,
@@ -588,7 +588,7 @@ private fun ModeratorCard(
             }
             if (debate.moderatorEnabled) {
                 DeletedModelNotice(debate.moderatorModelId, installed)
-                Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.workflows_pick_a_model), style = MaterialTheme.typography.bodySmall)
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -597,7 +597,7 @@ private fun ModeratorCard(
                         AssistChip(
                             onClick = { onPickModel(model) },
                             label = {
-                                val prefix = if (model.id == debate.moderatorModelId) stringResource(R.string.agents_check_mark_prefix) else ""
+                                val prefix = if (model.id == debate.moderatorModelId) stringResource(R.string.workflows_check_mark_prefix) else ""
                                 Text("$prefix${model.displayName.takeLast(36)}")
                             },
                         )
@@ -608,13 +608,13 @@ private fun ModeratorCard(
                     value = debate.moderatorSystemPrompt,
                     onValueChange = onSystemChange,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.agents_label_moderator_system_prompt)) },
+                    label = { Text(stringResource(R.string.workflows_label_moderator_system_prompt)) },
                     minLines = 2,
                     maxLines = 4,
                 )
             } else {
                 Text(
-                    stringResource(R.string.agents_moderator_disabled_note),
+                    stringResource(R.string.workflows_moderator_disabled_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -637,9 +637,9 @@ private fun PlanExecuteCard(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.agents_planner_title), fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.workflows_planner_title), fontWeight = FontWeight.Medium)
             DeletedModelNotice(pe.plannerModelId, installed)
-            Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.workflows_pick_a_model), style = MaterialTheme.typography.bodySmall)
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -648,7 +648,7 @@ private fun PlanExecuteCard(
                     AssistChip(
                         onClick = { onPickPlanner(model) },
                         label = {
-                            val prefix = if (model.id == pe.plannerModelId) stringResource(R.string.agents_check_mark_prefix) else ""
+                            val prefix = if (model.id == pe.plannerModelId) stringResource(R.string.workflows_check_mark_prefix) else ""
                             Text("$prefix${model.displayName.takeLast(36)}")
                         },
                     )
@@ -658,15 +658,15 @@ private fun PlanExecuteCard(
                 value = pe.plannerSystemPrompt,
                 onValueChange = onPlannerSystem,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.agents_label_planner_system_prompt)) },
+                label = { Text(stringResource(R.string.workflows_label_planner_system_prompt)) },
                 minLines = 2,
                 maxLines = 4,
             )
 
             HorizontalDivider()
-            Text(stringResource(R.string.agents_executor_title), fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.workflows_executor_title), fontWeight = FontWeight.Medium)
             DeletedModelNotice(pe.executorModelId, installed)
-            Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.workflows_pick_a_model), style = MaterialTheme.typography.bodySmall)
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -675,7 +675,7 @@ private fun PlanExecuteCard(
                     AssistChip(
                         onClick = { onPickExecutor(model) },
                         label = {
-                            val prefix = if (model.id == pe.executorModelId) stringResource(R.string.agents_check_mark_prefix) else ""
+                            val prefix = if (model.id == pe.executorModelId) stringResource(R.string.workflows_check_mark_prefix) else ""
                             Text("$prefix${model.displayName.takeLast(36)}")
                         },
                     )
@@ -685,14 +685,14 @@ private fun PlanExecuteCard(
                 value = pe.executorSystemPrompt,
                 onValueChange = onExecutorSystem,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.agents_label_executor_system_prompt)) },
+                label = { Text(stringResource(R.string.workflows_label_executor_system_prompt)) },
                 minLines = 2,
                 maxLines = 4,
             )
 
             HorizontalDivider()
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.agents_critic_optional_title), fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.workflows_critic_optional_title), fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 androidx.compose.material3.Switch(
                     checked = pe.criticEnabled,
                     onCheckedChange = onCriticToggle,
@@ -700,7 +700,7 @@ private fun PlanExecuteCard(
             }
             if (pe.criticEnabled) {
                 DeletedModelNotice(pe.criticModelId, installed)
-                Text(stringResource(R.string.agents_pick_a_model), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.workflows_pick_a_model), style = MaterialTheme.typography.bodySmall)
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -709,7 +709,7 @@ private fun PlanExecuteCard(
                         AssistChip(
                             onClick = { onPickCritic(model) },
                             label = {
-                                val prefix = if (model.id == pe.criticModelId) stringResource(R.string.agents_check_mark_prefix) else ""
+                                val prefix = if (model.id == pe.criticModelId) stringResource(R.string.workflows_check_mark_prefix) else ""
                                 Text("$prefix${model.displayName.takeLast(36)}")
                             },
                         )
@@ -719,13 +719,13 @@ private fun PlanExecuteCard(
                     value = pe.criticSystemPrompt,
                     onValueChange = onCriticSystem,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.agents_label_critic_system_prompt)) },
+                    label = { Text(stringResource(R.string.workflows_label_critic_system_prompt)) },
                     minLines = 2,
                     maxLines = 4,
                 )
             } else {
                 Text(
-                    stringResource(R.string.agents_critic_disabled_note),
+                    stringResource(R.string.workflows_critic_disabled_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -748,18 +748,18 @@ private fun WorkflowPresetsBar(
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    stringResource(R.string.agents_saved_presets_title, presets.size),
+                    stringResource(R.string.workflows_saved_presets_title, presets.size),
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f),
                 )
                 androidx.compose.material3.TextButton(
                     onClick = { newPresetName = ""; showSaveDialog = true },
                     enabled = !running,
-                ) { Text(stringResource(R.string.agents_save_current)) }
+                ) { Text(stringResource(R.string.workflows_save_current)) }
             }
             if (presets.isEmpty()) {
                 Text(
-                    stringResource(R.string.agents_presets_empty),
+                    stringResource(R.string.workflows_presets_empty),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -769,13 +769,13 @@ private fun WorkflowPresetsBar(
                         val modeLabel = stringResource(preset.mode.displayNameRes)
                         AssistChip(
                             onClick = { if (!running) onApply(preset.id) },
-                            label = { Text(stringResource(R.string.agents_preset_label, preset.name, modeLabel)) },
+                            label = { Text(stringResource(R.string.workflows_preset_label, preset.name, modeLabel)) },
                             modifier = Modifier.weight(1f),
                         )
                         androidx.compose.material3.TextButton(
                             onClick = { onDelete(preset.id) },
                             enabled = !running,
-                        ) { Text(stringResource(R.string.agents_delete)) }
+                        ) { Text(stringResource(R.string.workflows_delete)) }
                     }
                 }
             }
@@ -785,12 +785,12 @@ private fun WorkflowPresetsBar(
     if (showSaveDialog) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showSaveDialog = false },
-            title = { Text(stringResource(R.string.agents_dialog_save_preset)) },
+            title = { Text(stringResource(R.string.workflows_dialog_save_preset)) },
             text = {
                 OutlinedTextField(
                     value = newPresetName,
                     onValueChange = { newPresetName = it },
-                    label = { Text(stringResource(R.string.agents_dialog_label_name)) },
+                    label = { Text(stringResource(R.string.workflows_dialog_label_name)) },
                     singleLine = true,
                 )
             },
@@ -801,11 +801,11 @@ private fun WorkflowPresetsBar(
                         showSaveDialog = false
                     },
                     enabled = newPresetName.isNotBlank(),
-                ) { Text(stringResource(R.string.agents_button_save)) }
+                ) { Text(stringResource(R.string.workflows_button_save)) }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { showSaveDialog = false }) {
-                    Text(stringResource(R.string.agents_button_cancel))
+                    Text(stringResource(R.string.workflows_button_cancel))
                 }
             },
         )
@@ -822,12 +822,12 @@ private fun PastRunsSection(
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    stringResource(R.string.agents_recent_runs_title, pastRuns.size),
+                    stringResource(R.string.workflows_recent_runs_title, pastRuns.size),
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f),
                 )
                 androidx.compose.material3.TextButton(onClick = { expanded = !expanded }) {
-                    Text(if (expanded) stringResource(R.string.agents_hide) else stringResource(R.string.agents_show))
+                    Text(if (expanded) stringResource(R.string.workflows_hide) else stringResource(R.string.workflows_show))
                 }
             }
             if (expanded) {
@@ -851,20 +851,20 @@ private fun PastRunCard(run: PastRun, onDelete: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     stringResource(
-                        R.string.agents_past_run_header,
+                        R.string.workflows_past_run_header,
                         stringResource(run.mode.displayNameRes),
                         formatRunTime(run.createdAtEpochSec),
                     ),
                     style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier.weight(1f),
                 )
-                androidx.compose.material3.TextButton(onClick = onDelete) { Text(stringResource(R.string.agents_delete)) }
+                androidx.compose.material3.TextButton(onClick = onDelete) { Text(stringResource(R.string.workflows_delete)) }
             }
             if (run.userPrompt.isNotBlank()) {
                 val truncated = run.userPrompt.length > 120
                 Text(
-                    if (truncated) stringResource(R.string.agents_past_run_prompt_short_truncated, run.userPrompt.take(120))
-                    else stringResource(R.string.agents_past_run_prompt_short, run.userPrompt),
+                    if (truncated) stringResource(R.string.workflows_past_run_prompt_short_truncated, run.userPrompt.take(120))
+                    else stringResource(R.string.workflows_past_run_prompt_short, run.userPrompt),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -891,7 +891,7 @@ private fun DeletedModelNotice(modelId: String?, installed: List<InstalledModel>
     val isDeleted = modelId != null && installed.none { it.id == modelId }
     if (!isDeleted) return
     Text(
-        stringResource(R.string.agents_deleted_model_notice),
+        stringResource(R.string.workflows_deleted_model_notice),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.error,
     )
@@ -910,25 +910,25 @@ private fun DeletedModelNotice(modelId: String?, installed: List<InstalledModel>
 private fun friendlyStepLabel(run: StepRun, fallbackIndex: Int, isMultiRound: Boolean): String {
     val id = run.stepId
     return when {
-        id == "router" -> stringResource(R.string.agents_step_label_router)
-        id == "routed" -> stringResource(R.string.agents_step_label_routed)
-        id == "moderator" -> stringResource(R.string.agents_step_label_moderator)
+        id == "router" -> stringResource(R.string.workflows_step_label_router)
+        id == "routed" -> stringResource(R.string.workflows_step_label_routed)
+        id == "moderator" -> stringResource(R.string.workflows_step_label_moderator)
         id.startsWith("p-") -> {
             val rest = id.removePrefix("p-")
             val roundSep = rest.indexOf("-r")
             if (roundSep < 0) {
                 val n = rest.toIntOrNull()
-                    ?: return stringResource(R.string.agents_step_label_step, fallbackIndex + 1)
-                if (isMultiRound) stringResource(R.string.agents_step_label_round_participant, 1, n + 1)
-                else stringResource(R.string.agents_step_label_participant, n + 1)
+                    ?: return stringResource(R.string.workflows_step_label_step, fallbackIndex + 1)
+                if (isMultiRound) stringResource(R.string.workflows_step_label_round_participant, 1, n + 1)
+                else stringResource(R.string.workflows_step_label_participant, n + 1)
             } else {
                 val n = rest.substring(0, roundSep).toIntOrNull()
                 val r = rest.substring(roundSep + 2).toIntOrNull()
-                if (n == null || r == null) stringResource(R.string.agents_step_label_step, fallbackIndex + 1)
-                else stringResource(R.string.agents_step_label_round_participant, r, n + 1)
+                if (n == null || r == null) stringResource(R.string.workflows_step_label_step, fallbackIndex + 1)
+                else stringResource(R.string.workflows_step_label_round_participant, r, n + 1)
             }
         }
-        else -> stringResource(R.string.agents_step_label_step, fallbackIndex + 1)
+        else -> stringResource(R.string.workflows_step_label_step, fallbackIndex + 1)
     }
 }
 
@@ -943,7 +943,7 @@ private fun RunCard(index: Int, run: StepRun, isMultiRound: Boolean = false) {
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    if (run.isComplete) stringResource(R.string.agents_run_done) else stringResource(R.string.agents_run_ellipsis),
+                    if (run.isComplete) stringResource(R.string.workflows_run_done) else stringResource(R.string.workflows_run_ellipsis),
                     color = if (run.isComplete) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall,
@@ -954,7 +954,7 @@ private fun RunCard(index: Int, run: StepRun, isMultiRound: Boolean = false) {
                 StepToolCallChip(call)
             }
             androidx.compose.foundation.text.selection.SelectionContainer {
-                Text(if (run.output.isEmpty() && !run.isComplete) stringResource(R.string.agents_run_ellipsis) else run.output)
+                Text(if (run.output.isEmpty() && !run.isComplete) stringResource(R.string.workflows_run_ellipsis) else run.output)
             }
         }
     }
@@ -974,24 +974,24 @@ private fun StepToolCallChip(call: StepToolCallRecord) {
     ) {
         Column {
             val statusSuffix = when {
-                call.isError -> stringResource(R.string.agents_tool_status_error)
-                call.resultJson == null -> stringResource(R.string.agents_tool_status_running)
+                call.isError -> stringResource(R.string.workflows_tool_status_error)
+                call.resultJson == null -> stringResource(R.string.workflows_tool_status_running)
                 else -> ""
             }
             Text(
-                stringResource(R.string.agents_tool_icon_prefix) + call.toolName + statusSuffix,
+                stringResource(R.string.workflows_tool_icon_prefix) + call.toolName + statusSuffix,
                 style = MaterialTheme.typography.labelMedium,
                 color = accent,
             )
             Text(
-                stringResource(R.string.agents_tool_args, call.argumentsJson),
+                stringResource(R.string.workflows_tool_args, call.argumentsJson),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 2.dp),
             )
             call.resultJson?.let {
                 Text(
-                    stringResource(R.string.agents_tool_result, it),
+                    stringResource(R.string.workflows_tool_result, it),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(top = 2.dp),
@@ -1006,12 +1006,12 @@ private fun StatusLine(status: RunStatus) {
     when (status) {
         RunStatus.Idle -> Unit
         RunStatus.Running -> Text(
-            stringResource(R.string.agents_status_running),
+            stringResource(R.string.workflows_status_running),
             color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.bodySmall,
         )
         RunStatus.Done -> Text(
-            stringResource(R.string.agents_status_done),
+            stringResource(R.string.workflows_status_done),
             color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.bodySmall,
         )
@@ -1020,7 +1020,7 @@ private fun StatusLine(status: RunStatus) {
             // The localized reason; append untranslated technical detail when present.
             val full = status.details?.let { "$msg ($it)" } ?: msg
             Text(
-                stringResource(R.string.agents_status_failed, full),
+                stringResource(R.string.workflows_status_failed, full),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
             )

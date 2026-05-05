@@ -40,7 +40,7 @@ include(":feature:catalog")
 include(":feature:library")
 include(":feature:chat")
 include(":feature:compare")
-include(":feature:agents")
+include(":feature:workflows")
 include(":feature:settings")
 
 // Data layer

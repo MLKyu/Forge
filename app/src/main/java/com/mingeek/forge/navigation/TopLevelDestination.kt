@@ -10,7 +10,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.mingeek.forge.R
-import com.mingeek.forge.feature.agents.AgentsRoute
+import com.mingeek.forge.feature.workflows.WorkflowsRoute
 import com.mingeek.forge.feature.catalog.CatalogRoute
 import com.mingeek.forge.feature.chat.ChatRoute
 import com.mingeek.forge.feature.compare.CompareRoute
@@ -27,5 +27,5 @@ enum class TopLevelDestination(
     LIBRARY(LibraryRoute, R.string.nav_library, Icons.Filled.Folder),
     CHAT(ChatRoute, R.string.nav_chat, Icons.AutoMirrored.Filled.Chat),
     COMPARE(CompareRoute, R.string.nav_compare, Icons.AutoMirrored.Filled.CompareArrows),
-    AGENTS(AgentsRoute, R.string.nav_agents, Icons.Filled.Apps),
+    WORKFLOWS(WorkflowsRoute, R.string.nav_workflows, Icons.Filled.Apps),
 }
