@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.Row
 import com.mingeek.forge.core.ui.components.DeviceFitBadge
 import com.mingeek.forge.core.ui.components.FormatBadge
 import com.mingeek.forge.core.ui.components.LicenseChip
+import com.mingeek.forge.core.ui.permissions.rememberPermissionRequester
 import com.mingeek.forge.data.catalog.ModelCardDetail
 import com.mingeek.forge.data.catalog.RemoteFile
 import com.mingeek.forge.data.catalog.SearchQuery
@@ -64,6 +65,14 @@ fun CatalogScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
+    // Download progress is rendered by the foreground service via system
+    // notifications; without POST_NOTIFICATIONS the FG service still runs
+    // but notifySafely() no-ops, so the user sees nothing in the shade.
+    // Ask once on the first Download tap — the permission dialog auto-
+    // suppresses after grant or after the user denies.
+    val notifPermission = rememberPermissionRequester(
+        permission = android.Manifest.permission.POST_NOTIFICATIONS,
+    )
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         Text(stringResource(R.string.catalog_title), style = MaterialTheme.typography.headlineSmall)
@@ -188,7 +197,10 @@ fun CatalogScreen(
                 detail = detail,
                 downloads = downloads,
                 variantRuntimeFits = state.variantRuntimeFits,
-                onDownload = { card, file -> viewModel.downloadVariant(card, file) },
+                onDownload = { card, file ->
+                    if (!notifPermission.isGranted) notifPermission.request()
+                    viewModel.downloadVariant(card, file)
+                },
                 onPause = viewModel::pauseDownload,
                 onResume = viewModel::resumeDownload,
                 onCancel = viewModel::cancelDownload,
