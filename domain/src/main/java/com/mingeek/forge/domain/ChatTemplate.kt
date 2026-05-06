@@ -5,6 +5,15 @@ sealed interface ChatTemplate {
     val id: String
     val stopSequences: List<String>
 
+    /**
+     * Markers that bracket the model's internal reasoning in its raw
+     * output stream. Non-null only for templates whose model emits a
+     * dedicated reasoning block (R1, R1-Distill, QwQ, ...). The chat
+     * UI uses this to peel reasoning out of the bubble and render it
+     * as a compact status header above the message.
+     */
+    val reasoningMarkers: ReasoningMarkers? get() = null
+
     fun format(turns: List<Turn>, addAssistantPrefix: Boolean = true): String
 
     data class Turn(val role: Role, val content: String) {
@@ -147,6 +156,7 @@ sealed interface ChatTemplate {
     data object DeepSeek : ChatTemplate {
         override val id = "deepseek"
         override val stopSequences = listOf("<｜end▁of▁sentence｜>", "<｜User｜>")
+        override val reasoningMarkers: ReasoningMarkers? = ReasoningMarkers.THINK
         override fun format(turns: List<Turn>, addAssistantPrefix: Boolean): String = buildString {
             // Upstream Jinja merges system messages and emits them right
             // after BOS, before the first user turn — no separator. We

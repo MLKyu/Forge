@@ -19,8 +19,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -604,20 +607,36 @@ private fun MessageBubble(msg: ChatMessage) {
             ToolCallCard(entry)
         }
 
+        // Reasoning header sits above the bubble — chip during/after a
+        // <think> block, click to expand the raw reasoning text.
+        // Only assistant turns can carry reasoning, but the field
+        // defaults to empty for non-reasoning models / older messages.
+        if (!isUser && (msg.reasoning.isNotEmpty() || msg.isReasoning)) {
+            ReasoningHeader(msg)
+        }
+
         val bg = if (isUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest
         val fg = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-        Box(
-            modifier = Modifier
-                .widthIn(max = 320.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(bg)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-        ) {
-            androidx.compose.foundation.text.selection.SelectionContainer {
-                Text(
-                    if (msg.isStreaming && msg.content.isEmpty()) "…" else msg.content,
-                    color = fg,
-                )
+        // Hide the empty bubble while the model is still inside a
+        // reasoning block — otherwise the user sees an "…" bubble
+        // floating below "Thinking…" with nothing in it for tens of
+        // seconds. Once the model exits reasoning and content arrives,
+        // the bubble appears normally.
+        val showBubble = !(msg.isReasoning && msg.content.isEmpty())
+        if (showBubble) {
+            Box(
+                modifier = Modifier
+                    .widthIn(max = 320.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(bg)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+                androidx.compose.foundation.text.selection.SelectionContainer {
+                    Text(
+                        if (msg.isStreaming && msg.content.isEmpty()) "…" else msg.content,
+                        color = fg,
+                    )
+                }
             }
         }
         val caption = buildString {
@@ -632,6 +651,88 @@ private fun MessageBubble(msg: ChatMessage) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 2.dp, start = 4.dp, end = 4.dp),
         )
+    }
+}
+
+/**
+ * Compact status chip rendered above the bubble for assistant turns
+ * whose model emits a `<think>...</think>` block. While the model is
+ * still inside the block, shows a spinner + "Thinking…". Once closed,
+ * collapses to "🧠 Reasoned" — tap to expand the raw reasoning panel
+ * underneath.
+ *
+ * The chip stays compact and muted so it reads as metadata, not as
+ * primary content.
+ */
+@Composable
+private fun ReasoningHeader(msg: ChatMessage) {
+    val isThinking = msg.isReasoning && msg.isStreaming
+    var expanded by remember(msg.id) { mutableStateOf(false) }
+    val haveReasoning = msg.reasoning.isNotEmpty()
+
+    Column(
+        modifier = Modifier
+            .widthIn(max = 320.dp)
+            .padding(bottom = 4.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .let { mod ->
+                    // Only clickable when there's reasoning text to show.
+                    // While thinking we don't yet expose a final block.
+                    if (haveReasoning && !isThinking) {
+                        mod.clickable { expanded = !expanded }
+                    } else mod
+                }
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (isThinking) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(12.dp),
+                    strokeWidth = 1.5.dp,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+                Text(
+                    stringResource(R.string.chat_reasoning_thinking),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.padding(start = 6.dp),
+                )
+            } else {
+                Text(
+                    "🧠",
+                    style = MaterialTheme.typography.labelSmall,
+                )
+                Text(
+                    stringResource(R.string.chat_reasoning_done),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.padding(start = 6.dp),
+                )
+                if (haveReasoning) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 4.dp).size(14.dp),
+                    )
+                }
+            }
+        }
+        if (expanded && haveReasoning) {
+            androidx.compose.foundation.text.selection.SelectionContainer {
+                Text(
+                    msg.reasoning,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .padding(top = 4.dp, start = 4.dp, end = 4.dp),
+                )
+            }
+        }
     }
 }
 
