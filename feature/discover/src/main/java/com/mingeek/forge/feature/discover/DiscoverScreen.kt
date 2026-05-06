@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mingeek.forge.core.ui.components.DeviceFitBadge
 import com.mingeek.forge.core.ui.components.InfoTooltip
+import com.mingeek.forge.core.ui.components.LanguageBadge
 import com.mingeek.forge.data.discovery.DiscoveryRepository
 import com.mingeek.forge.data.discovery.RecommendedModel
 import com.mingeek.forge.data.storage.InstalledModel
@@ -237,6 +238,7 @@ private fun CuratorBar(
 
 @Composable
 private fun RecommendationCard(rec: RecommendedModel, onClick: () -> Unit) {
+    val multilingualLabel = stringResource(R.string.discover_language_multilingual)
     Card(
         modifier = Modifier.width(260.dp),
         onClick = onClick,
@@ -252,20 +254,26 @@ private fun RecommendationCard(rec: RecommendedModel, onClick: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text(
-                stringResource(
-                    R.string.discover_match_percent,
-                    "%.0f".format((rec.score * 100f).coerceAtMost(100f)),
-                ),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
+            Row(
                 modifier = Modifier.padding(top = 6.dp),
-            )
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                DeviceFitBadge(score = rec.candidate.deviceFit)
+                LanguageBadge(
+                    languages = rec.candidate.card.languages,
+                    multilingualLabel = multilingualLabel,
+                )
+            }
+            // Reasons replace the prior "Match X%" — the score was a sum
+            // of weighted similarities, not a probability, so a percent
+            // misled. The reasons spell out what actually matched.
             for (reason in rec.reasons) {
                 Text(
                     stringResource(R.string.discover_reason_bullet, reason),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
                 )
             }
         }
@@ -309,6 +317,7 @@ private fun CollectionEntryCard(
     onOpenSettings: () -> Unit,
 ) {
     val entry = entryView.entry
+    val multilingualLabel = stringResource(R.string.discover_language_multilingual)
     Card(
         modifier = Modifier.width(220.dp),
         onClick = onClick,
@@ -334,6 +343,10 @@ private fun CollectionEntryCard(
                 if (entryView.fit != null) {
                     DeviceFitBadge(score = entryView.fit)
                 }
+                LanguageBadge(
+                    languages = entryView.languages,
+                    multilingualLabel = multilingualLabel,
+                )
                 if (entry.gated) {
                     AuthBadge(
                         hasAuth = hasHfAuth,
@@ -464,6 +477,7 @@ private fun DiscoverCard(
     curation: Curation?,
     onClick: () -> Unit,
 ) {
+    val multilingualLabel = stringResource(R.string.discover_language_multilingual)
     Card(
         modifier = Modifier.width(260.dp),
         onClick = onClick,
@@ -482,6 +496,17 @@ private fun DiscoverCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Row(
+                modifier = Modifier.padding(top = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                DeviceFitBadge(score = item.deviceFit)
+                LanguageBadge(
+                    languages = item.card.languages,
+                    multilingualLabel = multilingualLabel,
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
