@@ -47,4 +47,8 @@
     <string name="chat_untitled_chat">Untitled chat</string>
     <string name="chat_error_inline">\n\n[error: %1$s]</string>
     <string name="chat_tool_loop_exceeded">\n\n[Tool loop exceeded %1$d iterations]</string>
+
+    <!-- Reasoning status header (R1 / R1-Distill / QwQ-style models) -->
+    <string name="chat_reasoning_thinking">Thinking…</string>
+    <string name="chat_reasoning_done">Reasoned</string>
 </resources>

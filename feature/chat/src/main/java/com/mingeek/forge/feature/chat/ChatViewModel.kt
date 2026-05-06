@@ -11,6 +11,7 @@ import com.mingeek.forge.data.storage.ModelStorage
 import com.mingeek.forge.data.storage.SettingsStore
 import com.mingeek.forge.data.storage.effectiveLastUsedEpochSec
 import com.mingeek.forge.domain.ChatTemplate
+import com.mingeek.forge.domain.ReasoningStreamParser
 import com.mingeek.forge.domain.RuntimeId
 import com.mingeek.forge.runtime.core.LoadConfig
 import com.mingeek.forge.runtime.core.ModelHandle
@@ -82,6 +83,22 @@ data class ChatMessage(
     val usage: Token.TokenUsage? = null,
     val timestampMs: Long = System.currentTimeMillis(),
     val toolCalls: List<ToolCallEntry> = emptyList(),
+    /**
+     * Internal-reasoning text peeled out of the raw stream via the
+     * active template's [com.mingeek.forge.domain.ReasoningMarkers].
+     * Empty for non-reasoning models, for older messages persisted
+     * before this field existed, and for assistant turns where the
+     * model never opened a reasoning block. Surfaced by the UI as a
+     * compact status header above the bubble — never inside [content].
+     */
+    val reasoning: String = "",
+    /**
+     * True only while a reasoning block is currently open in the
+     * incoming stream. Flipped to false on close marker and on
+     * [Token.Done]. Persisted for completeness; the UI uses it
+     * together with [isStreaming] to pick "Thinking…" vs "Reasoned".
+     */
+    val isReasoning: Boolean = false,
 ) {
     /**
      * SYSTEM is used for in-line notes the user didn't type and the model
@@ -613,6 +630,13 @@ class ChatViewModel(
             var lastUsage: Token.TokenUsage? = null
             var finishReason: Token.FinishReason? = null
 
+            // Per-turn parser so reasoning state doesn't leak across
+            // generate() calls (each tool-loop iteration is a fresh
+            // turn). Null when the active template doesn't declare
+            // reasoning markers — non-reasoning models stay on the
+            // simple appendToAssistant path.
+            val reasoningParser = template.reasoningMarkers?.let(::ReasoningStreamParser)
+
             runtime.generate(
                 sessionId,
                 Prompt(
@@ -625,13 +649,36 @@ class ChatViewModel(
                 when (token) {
                     is Token.Text -> {
                         turnOutput.append(token.piece)
-                        appendToAssistant(assistantMsgId, token.piece)
+                        if (reasoningParser != null) {
+                            val d = reasoningParser.feed(token.piece)
+                            appendToAssistantSplit(
+                                assistantMsgId,
+                                contentDelta = d.contentDelta,
+                                reasoningDelta = d.reasoningDelta,
+                                isReasoning = d.isReasoning,
+                            )
+                        } else {
+                            appendToAssistant(assistantMsgId, token.piece)
+                        }
                     }
                     is Token.Done -> {
                         lastUsage = token.usage
                         finishReason = token.finishReason
                     }
                     is Token.ToolCall -> { /* runtime-level tool calls unused */ }
+                }
+            }
+            // Drain pending chars buffered against an incomplete marker
+            // (e.g., model stopped mid-"<thi"). Lands them in whichever
+            // sink the parser was last in.
+            reasoningParser?.flush()?.let { d ->
+                if (d.contentDelta.isNotEmpty() || d.reasoningDelta.isNotEmpty()) {
+                    appendToAssistantSplit(
+                        assistantMsgId,
+                        contentDelta = d.contentDelta,
+                        reasoningDelta = d.reasoningDelta,
+                        isReasoning = false,
+                    )
                 }
             }
 
@@ -762,12 +809,46 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * Append parser-split deltas. Used when the active template declares
+     * [com.mingeek.forge.domain.ReasoningMarkers] so reasoning lands in
+     * its own field instead of polluting the visible bubble. Either delta
+     * may be empty in any given call (e.g., a piece that's purely inside
+     * a reasoning block contributes only to reasoning).
+     */
+    private fun appendToAssistantSplit(
+        messageId: String,
+        contentDelta: String,
+        reasoningDelta: String,
+        isReasoning: Boolean,
+    ) {
+        _state.update { state ->
+            state.copy(
+                messages = state.messages.map { m ->
+                    if (m.id == messageId) m.copy(
+                        content = m.content + contentDelta,
+                        reasoning = m.reasoning + reasoningDelta,
+                        isReasoning = isReasoning,
+                    ) else m
+                }
+            )
+        }
+    }
+
     private fun finalizeAssistant(messageId: String, usage: Token.TokenUsage?) {
         _state.update { state ->
             state.copy(
                 isGenerating = false,
                 messages = state.messages.map { m ->
-                    if (m.id == messageId) m.copy(isStreaming = false, usage = usage) else m
+                    if (m.id == messageId) m.copy(
+                        isStreaming = false,
+                        usage = usage,
+                        // The reasoning UI keys off this; clear it once the
+                        // stream is done so we don't render "Thinking…"
+                        // indefinitely if the model never emitted a close
+                        // marker (e.g., truncated by max_tokens).
+                        isReasoning = false,
+                    ) else m
                 }
             )
         }
