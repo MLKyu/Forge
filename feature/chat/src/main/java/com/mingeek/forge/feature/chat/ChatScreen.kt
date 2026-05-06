@@ -607,29 +607,44 @@ private fun MessageBubble(msg: ChatMessage) {
             ToolCallCard(entry)
         }
 
+        // Small distills (R1-Distill-Qwen-1.5B / 3B) routinely pack the
+        // entire answer inside `<think>...</think>` and emit nothing
+        // after `</think>`. Promote the reasoning into the bubble so the
+        // user can actually read the response — the chip is suppressed
+        // in this fallback because the reasoning IS the bubble's
+        // content; surfacing the same text twice would be noise.
+        val isReasoningFallback = !isUser &&
+            !msg.isStreaming &&
+            msg.content.isEmpty() &&
+            msg.reasoning.isNotBlank()
+
+        // Strip leading whitespace once. Models commonly write a blank
+        // line or two after `</think>` before the actual answer, which
+        // otherwise renders as visible empty space at the top of the
+        // bubble.
+        val displayContent = if (isReasoningFallback) msg.reasoning.trim()
+        else msg.content.trimStart()
+
         // Reasoning header sits above the bubble — chip during/after a
         // <think> block, click to expand the raw reasoning text. Only
-        // assistant turns can carry reasoning; isNotBlank guards against
+        // assistant turns can carry reasoning; isNotBlank guards
         // whitespace-only blocks (small models routinely emit `<think>
-        // </think>`) showing an empty chip.
-        if (!isUser && (msg.reasoning.isNotBlank() || msg.isReasoning)) {
+        // </think>`) from showing an empty chip. Suppressed in the
+        // fallback since the reasoning is already the bubble.
+        if (!isUser && !isReasoningFallback &&
+            (msg.reasoning.isNotBlank() || msg.isReasoning)
+        ) {
             ReasoningHeader(msg)
         }
 
         val bg = if (isUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest
         val fg = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-        // Show the bubble when there's actual content, or while the
-        // model is streaming OUTSIDE a reasoning block (so the user sees
-        // a "…" placeholder while the answer streams in). Hidden in two
-        // cases:
-        //   1. While the model is inside a <think> block (the chip
-        //      already says "Thinking…" — a second empty bubble is
-        //      noise).
-        //   2. After streaming ends with no content (small distills
-        //      sometimes pack the entire answer inside <think> and emit
-        //      nothing after </think>; the user can still read it via
-        //      the expanded chip).
-        val showBubble = msg.content.isNotEmpty() ||
+        // Show the bubble when there's display content (real content or
+        // promoted reasoning), or while the model is streaming OUTSIDE a
+        // reasoning block so the user sees a "…" placeholder while the
+        // answer streams in. Hidden while currently inside a <think>
+        // block — the chip's "Thinking…" already says it.
+        val showBubble = displayContent.isNotEmpty() ||
             (msg.isStreaming && !msg.isReasoning)
         if (showBubble) {
             Box(
@@ -641,7 +656,7 @@ private fun MessageBubble(msg: ChatMessage) {
             ) {
                 androidx.compose.foundation.text.selection.SelectionContainer {
                     Text(
-                        if (msg.isStreaming && msg.content.isEmpty()) "…" else msg.content,
+                        if (msg.isStreaming && displayContent.isEmpty()) "…" else displayContent,
                         color = fg,
                     )
                 }
