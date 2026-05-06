@@ -6,6 +6,7 @@ import com.mingeek.forge.data.catalog.ModelCatalogSource
 import com.mingeek.forge.data.catalog.RemoteFile
 import com.mingeek.forge.data.catalog.SearchQuery
 import com.mingeek.forge.domain.Capability
+import com.mingeek.forge.domain.LanguageHints
 import com.mingeek.forge.domain.License
 import com.mingeek.forge.domain.ModelCard
 import com.mingeek.forge.domain.ModelFamily
@@ -62,6 +63,7 @@ class HuggingFaceCatalogSource(
         val cardLicense = (detail.cardData?.get("license") as? String)
             ?.let { com.mingeek.forge.domain.Licenses.fromSpdx(it) }
         val effectiveLicense = cardLicense ?: inferLicense(detail.tags)
+        val languages = LanguageHints.parseHf(detail.tags, detail.cardData, detail.id)
 
         val variants = mutableListOf<ModelCard>()
         val files = mutableListOf<RemoteFile>()
@@ -90,6 +92,7 @@ class HuggingFaceCatalogSource(
                 license = effectiveLicense,
                 source = Source.HuggingFace(detail.id),
                 recommendedRuntimes = listOf(runtime),
+                languages = languages,
             )
             files += RemoteFile(
                 name = file.rfilename,
@@ -111,6 +114,7 @@ class HuggingFaceCatalogSource(
             license = effectiveLicense,
             source = Source.HuggingFace(detail.id),
             recommendedRuntimes = listOf(RuntimeId.LLAMA_CPP),
+            languages = languages,
         )
 
         return ModelCardDetail(
@@ -139,11 +143,14 @@ class HuggingFaceCatalogSource(
             sizeBytes = 0L,
             quantization = Quant.UNKNOWN,
             format = format,
-            contextLength = 4096,
             capabilities = setOf(Capability.CHAT),
+            contextLength = 4096,
             license = inferLicense(tags),
             source = Source.HuggingFace(id),
             recommendedRuntimes = listOf(runtime),
+            // Search summaries don't carry cardData; fall back to tag +
+            // name parsing only.
+            languages = LanguageHints.parseHf(tags, cardData = null, repoId = id),
         )
     }
 

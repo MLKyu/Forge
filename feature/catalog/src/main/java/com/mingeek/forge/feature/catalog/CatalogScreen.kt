@@ -33,8 +33,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.Row
 import com.mingeek.forge.core.ui.components.DeviceFitBadge
 import com.mingeek.forge.core.ui.components.FormatBadge
+import com.mingeek.forge.core.ui.components.LanguageBadge
 import com.mingeek.forge.core.ui.components.LicenseChip
 import com.mingeek.forge.core.ui.permissions.rememberPermissionRequester
+import com.mingeek.forge.domain.LanguageHints
 import com.mingeek.forge.data.catalog.ModelCardDetail
 import com.mingeek.forge.data.catalog.RemoteFile
 import com.mingeek.forge.data.catalog.SearchQuery
@@ -211,6 +213,7 @@ fun CatalogScreen(
 
 @Composable
 private fun ResultCard(card: ModelCard, onClick: () -> Unit) {
+    val multilingualLabel = stringResource(R.string.catalog_language_multilingual)
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -219,6 +222,11 @@ private fun ResultCard(card: ModelCard, onClick: () -> Unit) {
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f),
+                )
+                LanguageBadge(
+                    languages = card.languages,
+                    multilingualLabel = multilingualLabel,
+                    modifier = Modifier.padding(end = 6.dp),
                 )
                 FormatBadge(format = card.format)
             }
@@ -245,12 +253,36 @@ private fun DetailSheet(
     onResume: (String) -> Unit,
     onCancel: (String) -> Unit,
 ) {
+    val multilingualLabel = stringResource(R.string.catalog_language_multilingual)
+    val locale = LanguageHints.currentLocale()
+    val supportsLocale = LanguageHints.supportsLocale(detail.card.languages, locale)
+    val localeDisplay = java.util.Locale.forLanguageTag(locale).displayLanguage
+        .ifBlank { locale.uppercase() }
+
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(detail.card.displayName, style = MaterialTheme.typography.titleLarge)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                detail.card.displayName,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f),
+            )
+            LanguageBadge(
+                languages = detail.card.languages,
+                multilingualLabel = multilingualLabel,
+            )
+        }
         if (detail.description.isNotBlank()) {
             Text(
                 detail.description,
                 style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
+            )
+        }
+        if (!supportsLocale && detail.card.languages.isNotEmpty()) {
+            Text(
+                stringResource(R.string.catalog_language_warning, localeDisplay),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
             )
         }
