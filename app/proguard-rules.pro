@@ -53,6 +53,20 @@
 -dontwarn com.squareup.moshi.**
 
 # =============================================================================
+# Enums consumed by Moshi (reflective field lookup)
+# =============================================================================
+# Moshi's EnumJsonAdapter does Class.getField(constant.name()) for every
+# constant on the enum. The R8 optimizer enabled by proguard-android-optimize.txt
+# treats reflectively-read constants as unused and strips them, so deserializing
+# any @JsonClass type with an enum field then crashes with
+# "AssertionError: Missing field in <obfuscated-enum>".
+-keepclassmembers enum * {
+    <fields>;
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+# =============================================================================
 # Retrofit
 # =============================================================================
 -dontwarn retrofit2.**
