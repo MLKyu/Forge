@@ -608,21 +608,29 @@ private fun MessageBubble(msg: ChatMessage) {
         }
 
         // Reasoning header sits above the bubble — chip during/after a
-        // <think> block, click to expand the raw reasoning text.
-        // Only assistant turns can carry reasoning, but the field
-        // defaults to empty for non-reasoning models / older messages.
-        if (!isUser && (msg.reasoning.isNotEmpty() || msg.isReasoning)) {
+        // <think> block, click to expand the raw reasoning text. Only
+        // assistant turns can carry reasoning; isNotBlank guards against
+        // whitespace-only blocks (small models routinely emit `<think>
+        // </think>`) showing an empty chip.
+        if (!isUser && (msg.reasoning.isNotBlank() || msg.isReasoning)) {
             ReasoningHeader(msg)
         }
 
         val bg = if (isUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest
         val fg = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-        // Hide the empty bubble while the model is still inside a
-        // reasoning block — otherwise the user sees an "…" bubble
-        // floating below "Thinking…" with nothing in it for tens of
-        // seconds. Once the model exits reasoning and content arrives,
-        // the bubble appears normally.
-        val showBubble = !(msg.isReasoning && msg.content.isEmpty())
+        // Show the bubble when there's actual content, or while the
+        // model is streaming OUTSIDE a reasoning block (so the user sees
+        // a "…" placeholder while the answer streams in). Hidden in two
+        // cases:
+        //   1. While the model is inside a <think> block (the chip
+        //      already says "Thinking…" — a second empty bubble is
+        //      noise).
+        //   2. After streaming ends with no content (small distills
+        //      sometimes pack the entire answer inside <think> and emit
+        //      nothing after </think>; the user can still read it via
+        //      the expanded chip).
+        val showBubble = msg.content.isNotEmpty() ||
+            (msg.isStreaming && !msg.isReasoning)
         if (showBubble) {
             Box(
                 modifier = Modifier
@@ -668,7 +676,10 @@ private fun MessageBubble(msg: ChatMessage) {
 private fun ReasoningHeader(msg: ChatMessage) {
     val isThinking = msg.isReasoning && msg.isStreaming
     var expanded by remember(msg.id) { mutableStateOf(false) }
-    val haveReasoning = msg.reasoning.isNotEmpty()
+    // isNotBlank — small distills routinely emit `<think>\n\n</think>`;
+    // expanding to whitespace looks broken. Treat blank as "no
+    // reasoning" both for the toggle affordance and the panel.
+    val haveReasoning = msg.reasoning.isNotBlank()
 
     Column(
         modifier = Modifier
@@ -725,7 +736,10 @@ private fun ReasoningHeader(msg: ChatMessage) {
         if (expanded && haveReasoning) {
             androidx.compose.foundation.text.selection.SelectionContainer {
                 Text(
-                    msg.reasoning,
+                    // Trim leading/trailing whitespace the model commonly
+                    // pads with (newlines after `<think>`, before
+                    // `</think>`); the surrounding padding handles spacing.
+                    msg.reasoning.trim(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
