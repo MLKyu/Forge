@@ -3,6 +3,8 @@ package com.mingeek.forge.data.discovery
 import com.mingeek.forge.data.storage.InstalledModel
 import com.mingeek.forge.data.storage.effectiveLastUsedEpochSec
 import com.mingeek.forge.domain.DiscoveredModel
+import com.mingeek.forge.domain.LanguageHints
+import java.util.Locale
 import kotlin.math.exp
 import kotlin.math.ln
 
@@ -29,19 +31,28 @@ data class RecommendedModel(
 /**
  * Heuristic recommender — scores candidates by vendor / family-name /
  * size-class similarity to recently-used installed models, weighted by
- * recency. Cold-start (no installed models) returns empty.
+ * recency. Falls back to a locale-only signal on cold-start so a fresh
+ * install with no library still shows useful candidates.
  *
- * Signals:
+ * Signals (per installed model, decayed by recency):
  * - vendor match (0.45) — exact vendor string match (case-insensitive)
  * - family-name token overlap (0.30) — Jaccard similarity over tokenized
  *   family names; "Qwen2.5-Coder-3B" vs "Qwen2.5-3B" → some overlap
  * - size class match (0.25) — both in {tiny, small, medium, large}
  *
+ * Plus, applied once per candidate (not per installed model):
+ * - language match (0.20) — candidate's `languages` includes the user's
+ *   primary locale, or is `multi`. Empty `languages` (unknown) is neutral.
+ *
  * Recency: each installed model contributes its similarity weighted by
  * `exp(-days_since_used / 30)` so models the user used today dominate
  * over ones they haven't touched in months.
  */
-class UsagePatternRecommender : RecommendationEngine {
+class UsagePatternRecommender(
+    /** Lowercase ISO 639-1. Defaults to system locale. Pass blank to
+     *  disable the locale signal entirely. */
+    private val userLocale: String = LanguageHints.currentLocale(),
+) : RecommendationEngine {
 
     override val sourceId: String = "usage-pattern"
 
@@ -50,7 +61,6 @@ class UsagePatternRecommender : RecommendationEngine {
         installed: List<InstalledModel>,
         limit: Int,
     ): List<RecommendedModel> {
-        if (installed.isEmpty()) return emptyList()
         val now = System.currentTimeMillis() / 1000
         return candidates
             .map { candidate -> scoreCandidate(candidate, installed, now) }
@@ -73,6 +83,22 @@ class UsagePatternRecommender : RecommendationEngine {
                 total += sim * recencyWeight
                 why?.let { reasons += it }
             }
+        }
+        // Locale signal sits outside the installed-history loop because
+        // it's a property of the candidate alone — unrelated to whether
+        // the user has used a similar model before. Only fires when the
+        // candidate explicitly claims the locale (or multilingual);
+        // unknown `languages` stays neutral so we don't over-reward
+        // bare cards.
+        val langs = candidate.card.languages
+        if (userLocale.isNotBlank() && langs.isNotEmpty() &&
+            (userLocale in langs || LanguageHints.MULTILINGUAL in langs)
+        ) {
+            total += 0.20f
+            val nice = Locale.forLanguageTag(userLocale)
+                .getDisplayLanguage(Locale.ENGLISH)
+                .ifBlank { userLocale.uppercase() }
+            reasons += "Supports $nice"
         }
         return RecommendedModel(
             candidate = candidate,

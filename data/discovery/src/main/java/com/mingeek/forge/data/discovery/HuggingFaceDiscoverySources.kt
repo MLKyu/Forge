@@ -6,6 +6,7 @@ import com.mingeek.forge.domain.Capability
 import com.mingeek.forge.domain.DeviceFitScore
 import com.mingeek.forge.domain.DiscoveredModel
 import com.mingeek.forge.domain.DiscoverySignals
+import com.mingeek.forge.domain.LanguageHints
 import com.mingeek.forge.domain.License
 import com.mingeek.forge.domain.Licenses
 import com.mingeek.forge.domain.ModelCard
@@ -97,6 +98,7 @@ private fun HfModelSummary.toCard(): ModelCard = ModelCard(
     license = Licenses.fromTags(tags),
     source = Source.HuggingFace(id),
     recommendedRuntimes = listOf(RuntimeId.LLAMA_CPP),
+    languages = LanguageHints.parseHf(tags, cardData = null, repoId = id),
 )
 
 private fun String?.parseInstantOrNull(): Instant? {

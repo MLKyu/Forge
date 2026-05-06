@@ -36,4 +36,6 @@
     <string name="catalog_cancel">Cancel</string>
     <string name="catalog_dismiss">Dismiss</string>
     <string name="catalog_paused_progress">Paused at %1$s / %2$s</string>
+    <string name="catalog_language_multilingual">Multilingual</string>
+    <string name="catalog_language_warning">This model is not tagged for %1$s — output may be unreliable in your language.</string>
 </resources>
