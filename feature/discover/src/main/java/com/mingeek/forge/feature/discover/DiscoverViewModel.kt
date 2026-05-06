@@ -50,6 +50,15 @@ data class DiscoverUiMessage(
 data class CollectionEntryView(
     val entry: CollectionEntry,
     val fit: DeviceFitScore?,
+    /**
+     * Languages the entry's underlying model claims to handle, inferred
+     * from the modelId via [com.mingeek.forge.domain.LanguageHints]. The
+     * curated seed only carries (modelId, size, gated); we don't fetch
+     * HF cardData up-front, so this is name-only and may be empty for
+     * unfamiliar repos. Empty = unknown — treated as "don't show" by
+     * the badge.
+     */
+    val languages: Set<String> = emptySet(),
 )
 
 /**
@@ -156,7 +165,11 @@ class DiscoverViewModel(
                     runtime = RuntimeId.LLAMA_CPP,
                 )
             }
-            CollectionEntryView(entry = entry, fit = fit)
+            CollectionEntryView(
+                entry = entry,
+                fit = fit,
+                languages = com.mingeek.forge.domain.LanguageHints.inferFromName(entry.modelId),
+            )
         }.sortedWith(BEST_FIT_FIRST)
         return CollectionView(collection = collection, entries = scored)
     }
