@@ -192,6 +192,11 @@ class CatalogViewModel(
         // so it survives this ViewModel's death.
         val storageRef = storage
         val sourceId = catalogSource.sourceId
+        // Snapshot description from the currently-open detail sheet so
+        // the closure doesn't reach into _state at completion time
+        // (state may have moved on by then).
+        val description = _state.value.selectedDetail?.description.orEmpty()
+        val languages = card.languages
         val onCompleted: suspend (java.io.File) -> Unit = { savedFile ->
             val record = InstalledModel(
                 id = card.id,
@@ -209,6 +214,8 @@ class CatalogViewModel(
                 installedAtEpochSec = Instant.now().epochSecond,
                 licenseSpdxId = card.license.spdxId,
                 commercialUseAllowed = card.license.commercialUseAllowed,
+                description = description,
+                languages = languages,
             )
             storageRef.register(record)
         }

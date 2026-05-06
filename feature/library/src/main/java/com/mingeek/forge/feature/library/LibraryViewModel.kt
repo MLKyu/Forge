@@ -41,6 +41,10 @@ enum class LibrarySort(@StringRes val labelRes: Int) {
     SIZE_DESC(R.string.library_sort_largest),
     INSTALLED_DESC(R.string.library_sort_newest),
     SPEED_DESC(R.string.library_sort_fastest),
+    /** Stale-first — surfaces models the user hasn't loaded recently so
+     *  they're easy to find and delete. Falls back to install date for
+     *  records that never set lastUsedEpochSec. */
+    LAST_USED_ASC(R.string.library_sort_oldest_used),
 }
 
 /**

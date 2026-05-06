@@ -19,6 +19,7 @@
     <string name="library_sort_largest">Largest</string>
     <string name="library_sort_newest">Newest</string>
     <string name="library_sort_fastest">Fastest</string>
+    <string name="library_sort_oldest_used">Oldest used</string>
 
     <!-- Item card -->
     <string name="library_item_meta">%1$s · %2$s · %3$s</string>
@@ -52,4 +53,22 @@
 
     <!-- Auto-cleanup report -->
     <string name="library_auto_cleanup_report">Auto-cleanup removed %1$d model(s) to fit %2$d GB budget.</string>
+
+    <!-- Detail sheet -->
+    <string name="library_detail_no_description">No description was captured for this model.</string>
+    <string name="library_detail_section_about">About</string>
+    <string name="library_detail_section_files">File</string>
+    <string name="library_detail_section_specs">Specs</string>
+    <string name="library_detail_section_history">Usage</string>
+    <string name="library_detail_label_format">Format</string>
+    <string name="library_detail_label_quantization">Quantization</string>
+    <string name="library_detail_label_context">Context length</string>
+    <string name="library_detail_label_runtime">Runtime</string>
+    <string name="library_detail_label_size">Size on disk</string>
+    <string name="library_detail_label_path">Path</string>
+    <string name="library_detail_label_installed">Installed</string>
+    <string name="library_detail_label_last_used">Last used</string>
+    <string name="library_detail_last_used_never">Never</string>
+    <string name="library_detail_language_multilingual">Multilingual</string>
+    <string name="library_detail_close">Close</string>
 </resources>
