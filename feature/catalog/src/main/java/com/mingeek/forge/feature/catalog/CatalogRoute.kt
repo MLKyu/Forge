@@ -1,6 +1,10 @@
 package com.mingeek.forge.feature.catalog
 
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -50,8 +54,15 @@ fun NavGraphBuilder.catalogScreen(
             }
         )
 
+        // Survives rotation so the auto-opened detail sheet doesn't reappear
+        // after the user dismisses it. Keyed on the arg so a fresh deep-link
+        // with a different modelId resets and opens that one.
+        var consumed by rememberSaveable(pendingModelId) { mutableStateOf(false) }
         LaunchedEffect(pendingModelId) {
-            if (pendingModelId != null) viewModel.openDetailsById(pendingModelId)
+            if (pendingModelId != null && !consumed) {
+                viewModel.openDetailsById(pendingModelId)
+                consumed = true
+            }
         }
 
         CatalogScreen(viewModel = viewModel, modifier = modifier)
