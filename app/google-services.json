@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "906041136175",
+    "project_id": "forge-7ae6d",
+    "storage_bucket": "forge-7ae6d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:906041136175:android:ed8d7d7cfe237c7837a2da",
+        "android_client_info": {
+          "package_name": "com.mingeek.forge"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8sBt1quCakN2VAqPHEjktX7WDa0ijKZU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

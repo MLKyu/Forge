@@ -29,4 +29,8 @@
     <string name="download_action_pause">일시정지</string>
     <string name="download_action_resume">재개</string>
     <string name="download_action_cancel">취소</string>
+
+    <!-- Firebase Cloud Messaging -->
+    <string name="fcm_channel_name">일반 알림</string>
+    <string name="fcm_channel_description">Forge에서 전달되는 공지 및 업데이트 알림</string>
 </resources>
