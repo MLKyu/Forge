@@ -19,7 +19,7 @@
 
 ## Why Forge
 
-- **Truly on-device** — no API keys to OpenAI/Anthropic, no telemetry. Everything runs against models stored in your app's private files dir.
+- **Truly on-device inference** — no API keys to OpenAI/Anthropic, no prompts or model outputs ever leave the device. Everything runs against models stored in your app's private files dir. (See [Data collection](#data-collection) for the limited app-health telemetry collected via Firebase.)
 - **Multi-runtime by design** — a single `InferenceRuntime` interface backs `llama.cpp` (CPU, GGUF) and Google's `MediaPipe LLM Inference` (`.task`). ExecuTorch QNN/Exynos and MLC LLM are next.
 - **Multi-model first** — Compare and Agents aren't afterthoughts; the whole architecture (RuntimeRegistry, DeviceFitScorer, ChatTemplate detection, ConcurrentHashMap-based session manager) is built so several models can coexist.
 
@@ -70,6 +70,8 @@ Output: `app/build/outputs/apk/debug/app-debug.apk` (~150 MB — bundles `liblla
 
 First run: open the app → **Settings** → paste an HF access token (optional but recommended for rate limits and gated repos) → **Catalog** auto-loads trending models → pick a small one (e.g. `unsloth/Qwen2.5-0.5B-Instruct-GGUF` Q4_K_M, ~400 MB) → download → **Chat**.
 
+> **Firebase setup note** — `app/google-services.json` is committed. Before publishing or sharing builds, restrict the Android API key in GCP Console (APIs & Services → Credentials) to the app's package name + SHA-1 certificate fingerprint. Without that restriction the key is abusable for Firebase quota / Identity Toolkit calls.
+
 ## Status
 
 Active prototype. The skeleton + Phase 0–3 + Phase 6 are implemented and the project builds cleanly, but the UI flows have **not yet been verified on a physical device** as of the first public push. A reasonable first session is the device-validation checklist in `STATUS.md` (kept locally, not in repo).
@@ -88,6 +90,33 @@ Active prototype. The skeleton + Phase 0–3 + Phase 6 are implemented and the p
 - MediaPipe streaming uses a single result-listener slot per inference instance (race-prone under concurrent generate)
 - llama.cpp is pinned to `master` via CMake `FetchContent` — pinning to a specific commit is on the roadmap
 - License inference relies on HF tag prefixes; many repos surface as `unknown`
+
+## Beta distribution
+
+The Firebase App Distribution Gradle plugin currently targets a removed AGP API, so uploads use the **Firebase CLI** instead:
+
+```bash
+./gradlew :app:assembleRelease
+firebase appdistribution:distribute \
+  app/build/outputs/apk/release/Forge-1.0-release.apk \
+  --app 1:906041136175:android:ed8d7d7cfe237c7837a2da \
+  --groups internal-testers \
+  --release-notes-file release-notes.txt
+```
+
+## Data collection
+
+Forge runs all inference locally — **prompts, chat history, and model outputs never leave the device.** The app does send a small amount of operational data to Firebase to keep the prototype debuggable:
+
+| Service | What is collected |
+|---|---|
+| **Crashlytics (+ NDK)** | Stack traces of Java/Kotlin and native (JNI) crashes, plus device model / OS version. Native stack frames currently arrive un-symbolicated — automatic symbol upload still needs wiring into `:runtime:llamacpp` (MediaPipe/ExecuTorch ship stripped `.so` and cannot be symbolicated without vendor debug symbols). |
+| **Analytics** | Anonymous screen views and standard lifecycle events (no chat content). |
+| **Performance Monitoring** | App start, slow-frame counts, HTTP timings for HuggingFace API + model downloads. |
+| **Cloud Messaging (FCM)** | The device's FCM token, only when notifications are enabled. |
+| **Remote Config** | Outbound only — the app fetches feature flags / defaults. No user data is uploaded. |
+
+To opt out, build with the Firebase SDKs disabled or call `FirebaseAnalytics.setAnalyticsCollectionEnabled(false)` and `FirebaseCrashlytics.setCrashlyticsCollectionEnabled(false)` early in `ForgeApplication.onCreate`. A user-facing toggle in **Settings** is on the roadmap.
 
 ## Contributing
 

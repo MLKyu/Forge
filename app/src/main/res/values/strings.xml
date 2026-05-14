@@ -31,4 +31,8 @@
     <string name="download_action_pause">Pause</string>
     <string name="download_action_resume">Resume</string>
     <string name="download_action_cancel">Cancel</string>
+
+    <!-- Firebase Cloud Messaging -->
+    <string name="fcm_channel_name">General notifications</string>
+    <string name="fcm_channel_description">Announcements and updates pushed from Forge.</string>
 </resources>

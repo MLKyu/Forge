@@ -2,6 +2,15 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.devtools.ksp)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
+    // Two Firebase Gradle plugins are intentionally NOT applied because they
+    // still target removed AGP APIs (Transform / AppExtension) and fail under
+    // AGP 9.x. Their runtime SDKs are included below and we lean on Firebase
+    // CLI for uploads:
+    //   - firebase-perf-gradle: app start + screen render traces still auto-collect;
+    //     wrap OkHttp manually if HTTP timings are needed.
+    //   - appdistribution-gradle: upload via `firebase appdistribution:distribute`.
 }
 
 private val appName = "Forge"
@@ -37,6 +46,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Note: NDK symbol upload (`nativeSymbolUploadEnabled`) belongs in
+            // the module that runs externalNativeBuild — here it would be a
+            // no-op because `:app` has no CMake. llama.cpp symbols would have
+            // to be uploaded from `:runtime:llamacpp`. MediaPipe / ExecuTorch
+            // ship stripped `.so` inside AARs, so symbolication isn't possible
+            // without vendor-supplied debug symbols.
         }
     }
 
@@ -132,6 +147,16 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.okhttp)
+
+    // Firebase — BOM aligns all SDK versions
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.crashlytics.ndk)
+    implementation(libs.firebase.messaging)
+    implementation(libs.firebase.perf)
+    implementation(libs.firebase.config)
+    implementation(libs.firebase.inappmessaging.display)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

@@ -8,6 +8,8 @@ import com.mingeek.forge.data.discovery.DiscoveryWorkScheduler
 import com.mingeek.forge.data.download.isActive
 import com.mingeek.forge.di.ForgeContainer
 import com.mingeek.forge.download.DownloadForegroundService
+import com.mingeek.forge.messaging.FcmNotifications
+import com.mingeek.forge.remoteconfig.RemoteConfigBootstrap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,6 +29,8 @@ class ForgeApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = ForgeContainer(this)
+        FcmNotifications.ensureChannel(this)
+        RemoteConfigBootstrap.init(this)
         DiscoveryWorkBindings.bind(
             repository = container.discoveryRepository,
             settingsStore = container.settingsStore,
