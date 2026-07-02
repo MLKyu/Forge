@@ -13,7 +13,7 @@ android {
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
-        minSdk = 36
+        minSdk = 33
         ndk {
             abiFilters += listOf("arm64-v8a")
         }

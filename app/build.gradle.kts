@@ -27,7 +27,7 @@ android {
 
     defaultConfig {
         applicationId = "com.mingeek.forge"
-        minSdk = 36
+        minSdk = 33
         targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersionName
