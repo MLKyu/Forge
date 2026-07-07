@@ -12,7 +12,7 @@ android {
         }
     }
     defaultConfig {
-        minSdk = 33
+        minSdk = 31
     }
     buildFeatures {
         compose = true
