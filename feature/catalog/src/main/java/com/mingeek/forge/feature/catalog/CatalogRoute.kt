@@ -24,7 +24,8 @@ private const val ARG_MODEL_ID = "modelId"
 private const val CATALOG_PATTERN = "$CatalogRoute?$ARG_MODEL_ID={$ARG_MODEL_ID}"
 
 fun catalogRouteWithModelId(id: String): String =
-    "$CatalogRoute?$ARG_MODEL_ID=${java.net.URLEncoder.encode(id, Charsets.UTF_8)}"
+    // encode(String, String) — the Charset overload needs API 33, minSdk is 31.
+    "$CatalogRoute?$ARG_MODEL_ID=${java.net.URLEncoder.encode(id, Charsets.UTF_8.name())}"
 
 fun NavGraphBuilder.catalogScreen(
     catalogSource: ModelCatalogSource,
